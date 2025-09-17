@@ -1,1 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainbow Whiteboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #e0e0e0;
+            flex-wrap: wrap;
+        }
+
+        .markers {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .marker {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .marker:hover {
+            transform: scale(1.1);
+        }
+
+        .marker.active {
+            transform: scale(1.2);
+            border-color: #333;
+            box-shadow: 0 0 0 2px #333;
+        }
+
+        .marker.red { background: #ff6b6b; }
+        .marker.orange { background: #ffa726; }
+        .marker.yellow { background: #ffee58; }
+        .marker.green { background: #66bb6a; }
+        .marker.blue { background: #42a5f5; }
+        .marker.purple { background: #ab47bc; }
+        .marker.black { background: #424242; }
+
+        .tools {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .tool {
+            width: 35px;
+            height: 35px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            background: #fff;
+            color: #555;
+        }
+
+        .tool:hover {
+            transform: scale(1.1);
+            border-color: #999;
+        }
+
+        .tool.active {
+            transform: scale(1.1);
+            border-color: #333;
+            background: #333;
+            color: white;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="range"] {
+            width: 80px;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #333;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #333;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .thickness-display {
+            font-size: 12px;
+            color: #555;
+            min-width: 35px;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        input[type="color"] {
+            width: 35px;
+            height: 35px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        button {
+            background: #fff;
+            color: #555;
+            border: 2px solid #ddd;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            min-width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            background: #333;
+            color: white;
+            border-color: #333;
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fff;
+            padding: 20px;
+        }
+
+        canvas {
+            border: 2px solid #ddd;
+            cursor: crosshair;
+            background: white;
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .chat-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            height: 400px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            border: 1px solid #e0e0e0;
+        }
+
+        .chat-header {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            border-radius: 12px 12px 0 0;
+            font-weight: 600;
+            color: #333;
+            text-align: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .chat-messages::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, white);
+            pointer-events: none;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: #f1f3f4;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .message.own {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message .sender {
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 4px;
+            opacity: 0.8;
+        }
+
+        .message .content {
+            margin: 0;
+        }
+
+        .chat-input-container {
+            padding: 12px 16px;
+            border-top: 1px solid #e0e0e0;
+            border-radius: 0 0 12px 12px;
+            background: white;
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+            font-size: 14px;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        @media (max-width: 768px) {
+            .toolbar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .chat-container {
+                width: 280px;
+                height: 350px;
+                bottom: 10px;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">        
+        <div class="toolbar">
+            <div class="markers">
+                <div class="marker red active" data-color="#ff6b6b" title="Red Marker"></div>
+                <div class="marker orange" data-color="#ffa726" title="Orange Marker"></div>
+                <div class="marker yellow" data-color="#ffee58" title="Yellow Marker"></div>
+                <div class="marker green" data-color="#66bb6a" title="Green Marker"></div>
+                <div class="marker blue" data-color="#42a5f5" title="Blue Marker"></div>
+                <div class="marker purple" data-color="#ab47bc" title="Purple Marker"></div>
+                <div class="marker black" data-color="#424242" title="Black Marker"></div>
+            </div>
+            
+            <div class="tools">
+                <div class="tool brush active" data-tool="brush" title="Brush Tool">🖌️</div>
+                <div class="tool eraser" data-tool="eraser" title="Eraser Tool">🧽</div>
+                <div class="tool bucket" data-tool="bucket" title="Fill Tool - Click to fill areas">🪣</div>
+                <div class="tool eyedropper" data-tool="eyedropper" title="Eyedropper - Right click to pick colors">💧</div>
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <input type="range" id="thickness" min="1" max="30" value="5" title="Brush Thickness">
+                    <span class="thickness-display" id="thicknessValue">5px</span>
+                </div>
+                
+                <input type="color" id="colorPicker" value="#ff6b6b" title="Custom Color Picker">
+                
+                <button id="undoButton" title="Undo (Ctrl+Z)">↶</button>
+                <button id="clearCanvas" title="Clear Canvas">🗑️</button>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="whiteboard"></canvas>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat-container">
+            <div class="chat-header">
+                💬 Chat
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message">
+                    <div class="sender">System</div>
+                    <div class="content">Welcome to the whiteboard chat!</div>
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <input 
+                    type="text" 
+                    class="chat-input" 
+                    id="chatInput" 
+                    placeholder="Type a message..."
+                    maxlength="500"
+                >
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class WhiteboardApp {
+            constructor() {
+                this.canvas = document.getElementById('whiteboard');
+                this.ctx = this.canvas.getContext('2d');
+                this.isDrawing = false;
+                this.currentColor = '#ff6b6b';
+                this.currentThickness = 5;
+                this.currentTool = 'brush';
+                this.history = [];
+                this.historyStep = -1;
+                
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.updateCursor();
+                this.saveState();
+            }
+            
+            setupCanvas() {
+                // Set canvas size
+                this.canvas.width = 1000;
+                this.canvas.height = 600;
+                
+                // Set drawing properties
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.imageSmoothingEnabled = true;
+            }
+            
+            setupEventListeners() {
+                // Marker selection
+                const markers = document.querySelectorAll('.marker');
+                markers.forEach(marker => {
+                    marker.addEventListener('click', (e) => {
+                        markers.forEach(m => m.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.currentColor = e.target.dataset.color;
+                        document.getElementById('colorPicker').value = this.currentColor;
+                    });
+                });
+                
+                // Tool selection
+                const tools = document.querySelectorAll('.tool');
+                tools.forEach(tool => {
+                    tool.addEventListener('click', (e) => {
+                        tools.forEach(t => t.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.currentTool = e.target.dataset.tool;
+                        this.updateCursor();
+                    });
+                });
+                
+                // Custom color picker
+                const colorPicker = document.getElementById('colorPicker');
+                colorPicker.addEventListener('change', (e) => {
+                    this.currentColor = e.target.value;
+                    // Remove active class from all markers when using custom color
+                    markers.forEach(m => m.classList.remove('active'));
+                });
+                
+                // Thickness slider
+                const thicknessSlider = document.getElementById('thickness');
+                const thicknessValue = document.getElementById('thicknessValue');
+                thicknessSlider.addEventListener('input', (e) => {
+                    this.currentThickness = e.target.value;
+                    thicknessValue.textContent = `${e.target.value}px`;
+                });
+                
+                // Clear canvas button
+                document.getElementById('clearCanvas').addEventListener('click', () => {
+                    this.clearCanvas();
+                });
+                
+                // Undo button
+                document.getElementById('undoButton').addEventListener('click', () => {
+                    this.undo();
+                });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                        e.preventDefault();
+                        this.undo();
+                    }
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Delete') {
+                        e.preventDefault();
+                        this.clearCanvas();
+                    }
+                });
+                
+                // Mouse events
+                this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.canvas.addEventListener('mouseup', () => this.stopDrawing());
+                this.canvas.addEventListener('mouseout', () => this.stopDrawing());
+                this.canvas.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    this.eyedropColor(e);
+                });
+                
+                // Touch events for mobile
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const mouseEvent = new MouseEvent('mousedown', {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY,
+                        button: 0
+                    });
+                    this.canvas.dispatchEvent(mouseEvent);
+                });
+                
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const mouseEvent = new MouseEvent('mousemove', {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                    this.canvas.dispatchEvent(mouseEvent);
+                });
+                
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.stopDrawing();
+                });
+            }
+            
+            updateCursor() {
+                switch(this.currentTool) {
+                    case 'brush':
+                        this.canvas.style.cursor = 'crosshair';
+                        break;
+                    case 'eraser':
+                        this.canvas.style.cursor = 'grab';
+                        break;
+                    case 'bucket':
+                        this.canvas.style.cursor = 'pointer';
+                        break;
+                    case 'eyedropper':
+                        this.canvas.style.cursor = 'copy';
+                        break;
+                }
+            }
+            
+            getMousePos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const scaleX = this.canvas.width / rect.width;
+                const scaleY = this.canvas.height / rect.height;
+                
+                return {
+                    x: Math.floor((e.clientX - rect.left) * scaleX),
+                    y: Math.floor((e.clientY - rect.top) * scaleY)
+                };
+            }
+            
+            handleMouseDown(e) {
+                const pos = this.getMousePos(e);
+                
+                switch(this.currentTool) {
+                    case 'brush':
+                        this.startDrawing(e);
+                        break;
+                    case 'eraser':
+                        this.startErasing(e);
+                        break;
+                    case 'bucket':
+                        this.floodFill(pos.x, pos.y, this.currentColor);
+                        break;
+                    case 'eyedropper':
+                        this.eyedropColor(e);
+                        break;
+                }
+            }
+            
+            handleMouseMove(e) {
+                if (!this.isDrawing || (this.currentTool !== 'brush' && this.currentTool !== 'eraser')) return;
+                
+                const pos = this.getMousePos(e);
+                
+                this.ctx.lineWidth = this.currentThickness;
+                if (this.currentTool === 'brush') {
+                    this.ctx.strokeStyle = this.currentColor;
+                } else {
+                    this.ctx.strokeStyle = 'rgba(0,0,0,1)';
+                }
+                
+                this.ctx.lineTo(pos.x, pos.y);
+                this.ctx.stroke();
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, pos.y);
+            }
+            
+            startDrawing(e) {
+                this.isDrawing = true;
+                const pos = this.getMousePos(e);
+                this.ctx.globalCompositeOperation = 'source-over';
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, pos.y);
+            }
+            
+            startErasing(e) {
+                this.isDrawing = true;
+                const pos = this.getMousePos(e);
+                this.ctx.globalCompositeOperation = 'destination-out';
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, pos.y);
+            }
+            
+            stopDrawing() {
+                if (this.isDrawing) {
+                    this.isDrawing = false;
+                    this.ctx.beginPath();
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    this.saveState();
+                }
+            }
+            
+            floodFill(x, y, fillColor) {
+                const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                const pixels = imageData.data;
+                
+                const targetColor = this.getPixelColor(pixels, x, y, this.canvas.width);
+                const fillColorRGB = this.hexToRgb(fillColor);
+                
+                if (this.colorsMatch(targetColor, fillColorRGB)) {
+                    return;
+                }
+                
+                const pixelStack = [[x, y]];
+                const visited = new Set();
+                
+                while (pixelStack.length) {
+                    const [currentX, currentY] = pixelStack.pop();
+                    const key = `${currentX},${currentY}`;
+                    
+                    if (visited.has(key) || currentX < 0 || currentX >= this.canvas.width || 
+                        currentY < 0 || currentY >= this.canvas.height) {
+                        continue;
+                    }
+                    
+                    const currentColor = this.getPixelColor(pixels, currentX, currentY, this.canvas.width);
+                    
+                    if (!this.colorsMatch(currentColor, targetColor)) {
+                        continue;
+                    }
+                    
+                    visited.add(key);
+                    this.setPixelColor(pixels, currentX, currentY, fillColorRGB, this.canvas.width);
+                    
+                    pixelStack.push([currentX + 1, currentY]);
+                    pixelStack.push([currentX - 1, currentY]);
+                    pixelStack.push([currentX, currentY + 1]);
+                    pixelStack.push([currentX, currentY - 1]);
+                }
+                
+                this.ctx.putImageData(imageData, 0, 0);
+                this.saveState();
+            }
+            
+            getPixelColor(pixels, x, y, width) {
+                const index = (y * width + x) * 4;
+                return {
+                    r: pixels[index],
+                    g: pixels[index + 1],
+                    b: pixels[index + 2],
+                    a: pixels[index + 3]
+                };
+            }
+            
+            setPixelColor(pixels, x, y, color, width) {
+                const index = (y * width + x) * 4;
+                pixels[index] = color.r;
+                pixels[index + 1] = color.g;
+                pixels[index + 2] = color.b;
+                pixels[index + 3] = 255;
+            }
+            
+            colorsMatch(color1, color2) {
+                return color1.r === color2.r && 
+                       color1.g === color2.g && 
+                       color1.b === color2.b;
+            }
+            
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            }
+            
+            rgbToHex(r, g, b) {
+                return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+            }
+            
+            eyedropColor(e) {
+                const pos = this.getMousePos(e);
+                const imageData = this.ctx.getImageData(pos.x, pos.y, 1, 1);
+                const pixel = imageData.data;
+                
+                const r = pixel[0];
+                const g = pixel[1];
+                const b = pixel[2];
+                const a = pixel[3];
+                
+                if (a > 0) {
+                    const hexColor = this.rgbToHex(r, g, b);
+                    this.currentColor = hexColor;
+                    document.getElementById('colorPicker').value = hexColor;
+                    document.querySelectorAll('.marker').forEach(m => m.classList.remove('active'));
+                }
+            }
+            
+            saveState() {
+                this.historyStep++;
+                if (this.historyStep < this.history.length) {
+                    this.history.length = this.historyStep;
+                }
+                this.history.push(this.canvas.toDataURL());
+                
+                // Limit history to prevent memory issues
+                if (this.history.length > 50) {
+                    this.history.shift();
+                    this.historyStep--;
+                }
+            }
+            
+            undo() {
+                if (this.historyStep > 0) {
+                    this.historyStep--;
+                    this.restoreState();
+                }
+            }
+            
+            restoreState() {
+                const img = new Image();
+                img.onload = () => {
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.drawImage(img, 0, 0);
+                };
+                img.src = this.history[this.historyStep];
+            }
+            
+            clearCanvas() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.saveState();
+            }
+        }
+        
+        class ChatApp {
+            constructor() {
+                this.chatMessages = document.getElementById('chatMessages');
+                this.chatInput = document.getElementById('chatInput');
+                this.messageCount = 1; // Start at 1 since we have the welcome message
+                
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                this.chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+            }
+            
+            sendMessage() {
+                const message = this.chatInput.value.trim();
+                if (!message) return;
+                
+                this.addMessage(message, 'You', true);
+                this.chatInput.value = '';
+            }
+            
+            addMessage(content, sender, isOwn = false) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isOwn ? 'own' : ''}`;
+                
+                messageDiv.innerHTML = `
+                    <div class="sender">${sender}</div>
+                    <div class="content">${this.escapeHtml(content)}</div>
+                `;
+                
+                this.chatMessages.appendChild(messageDiv);
+                this.messageCount++;
+                
+                // Auto-scroll to bottom
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                
+                // Apply fade effect if too many messages
+                this.manageFadeEffect();
+            }
+            
+            manageFadeEffect() {
+                const messages = this.chatMessages.querySelectorAll('.message');
+                
+                // If we have more than 8 messages, start fading older ones
+                if (messages.length > 8) {
+                    messages.forEach((message, index) => {
+                        if (index < messages.length - 8) {
+                            const opacity = Math.max(0.3, 1 - ((messages.length - 8 - index) * 0.2));
+                            message.style.opacity = opacity;
+                        } else {
+                            message.style.opacity = 1;
+                        }
+                    });
+                }
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        }
+        
+        // Initialize the whiteboard app when the page loads
+        window.addEventListener('load', () => {
+            new WhiteboardApp();
+            new ChatApp();
+        });
+    </script>
+</body>
+</html>
