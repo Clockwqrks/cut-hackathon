@@ -1012,6 +1012,7 @@
                 document.getElementById('roomCode').textContent = this.currentRoom;
 
                 this.startPolling();
+                chatApp.enableChat(); // Enable chat for host too
                 this.updateConnectionStatus(`Room ${this.currentRoom} created`, 'connected');
             }
 
@@ -1053,6 +1054,7 @@
                 document.getElementById('connectedRoom').style.display = 'block';
 
                 this.startPolling();
+                chatApp.enableChat(); // Enable chat as soon as connected
                 this.updateConnectionStatus(`Joined room ${roomCode}`, 'connected');
             }
 
@@ -1083,10 +1085,14 @@
 
                 // Handle messages
                 if (roomData.messages) {
+                    // Initialize processedMessages if it doesn't exist
+                    if (!this.processedMessages) {
+                        this.processedMessages = new Set();
+                    }
+                    
                     roomData.messages.forEach(msg => {
-                        if (msg.id && !this.processedMessages?.has(msg.id)) {
+                        if (msg.id && !this.processedMessages.has(msg.id)) {
                             this.handleMessage(msg);
-                            if (!this.processedMessages) this.processedMessages = new Set();
                             this.processedMessages.add(msg.id);
                         }
                     });
@@ -1190,6 +1196,9 @@
                 document.getElementById('lobbyModal').style.display = 'none';
                 gameManager.initializeFromRoom(gameState);
                 chatApp.enableChat();
+                
+                // Continue polling for game updates and chat
+                this.startPolling();
             }
 
             closeRoom() {
@@ -1292,9 +1301,8 @@
             }
 
             broadcastUpdate(update) {
-                if (roomManager.isHost) {
-                    roomManager.sendMessage('gameUpdate', update);
-                }
+                // All players can send updates, not just host
+                roomManager.sendMessage('gameUpdate', update);
             }
 
             handleRemoteUpdate(update) {
@@ -1377,29 +1385,17 @@
                 this.artworks = [...(this.artworks || []), artwork];
                 document.getElementById('submitDrawing').disabled = true;
                 
-                this.currentPlayer++;
-                if (this.currentPlayer < this.players.length) {
-                    const newPrompt = this.generateNewPrompt();
-                    this.currentPrompt = newPrompt;
-                    
-                    const update = {
-                        currentPlayer: this.currentPlayer,
-                        currentPrompt: newPrompt,
-                        artworks: this.artworks
-                    };
-                    
-                    this.broadcastUpdate(update);
-                    this.startDrawingPhase();
-                } else {
-                    const update = {
-                        phase: 'bidding',
-                        artworks: this.artworks,
-                        currentAuctionIndex: 0
-                    };
-                    
-                    this.broadcastUpdate(update);
-                    this.startBiddingPhase();
-                }
+                // Go directly to bidding after one drawing per round
+                const update = {
+                    phase: 'bidding',
+                    artworks: this.artworks,
+                    currentAuctionIndex: 0,
+                    currentBid: 0,
+                    currentBidder: null
+                };
+                
+                this.broadcastUpdate(update);
+                this.startBiddingPhase();
             }
             
             generateNewPrompt() {
@@ -1564,9 +1560,11 @@
             
             endRound() {
                 this.currentRound++;
-                this.currentPlayer = 0;
+                // Rotate to next player for next round
+                this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
                 this.artworks = [];
                 this.currentAuctionIndex = 0;
+                this.currentPrompt = ''; // Reset prompt for next round
                 
                 document.querySelector('.toolbar').style.display = 'flex';
                 
@@ -1580,9 +1578,10 @@
                         const update = {
                             phase: 'drawing',
                             round: this.currentRound,
-                            currentPlayer: 0,
+                            currentPlayer: this.currentPlayer,
                             artworks: [],
-                            currentAuctionIndex: 0
+                            currentAuctionIndex: 0,
+                            currentPrompt: ''
                         };
                         this.broadcastUpdate(update);
                     }
