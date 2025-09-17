@@ -28,6 +28,33 @@
             width: 100vw;
         }
 
+        /* Connection Status */
+        .connection-status {
+            background: #f8f9fa;
+            border-bottom: 2px solid #007bff;
+            padding: 10px 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .connection-status.connected {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .connection-status.connecting {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+
+        .connection-status.error {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
         /* Game Status Bar */
         .game-status {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -89,33 +116,6 @@
             cursor: not-allowed;
         }
 
-        /* Connection Status */
-        .connection-status {
-            background: #f8f9fa;
-            border-bottom: 2px solid #007bff;
-            padding: 10px 20px;
-            text-align: center;
-            font-weight: 600;
-        }
-
-        .connection-status.connected {
-            background: #d4edda;
-            border-color: #28a745;
-            color: #155724;
-        }
-
-        .connection-status.connecting {
-            background: #fff3cd;
-            border-color: #ffc107;
-            color: #856404;
-        }
-
-        .connection-status.error {
-            background: #f8d7da;
-            border-color: #dc3545;
-            color: #721c24;
-        }
-
         /* Lobby Modal */
         .lobby-modal {
             position: fixed;
@@ -173,20 +173,17 @@
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
         }
 
-        .connection-code {
+        .game-code-display {
             background: #f8f9fa;
             border: 2px dashed #007bff;
             border-radius: 10px;
-            padding: 20px;
+            padding: 30px;
             margin: 20px 0;
+            font-size: 36px;
+            font-weight: bold;
+            color: #007bff;
+            letter-spacing: 8px;
             font-family: monospace;
-            font-size: 14px;
-            text-align: left;
-            word-break: break-all;
-        }
-
-        .connection-code.offer {
-            border-color: #28a745;
         }
 
         .form-group {
@@ -202,19 +199,15 @@
             color: #333;
         }
 
-        .form-group input, .form-group textarea {
+        .form-group input {
             padding: 12px 15px;
             border: 2px solid #ddd;
             border-radius: 10px;
             font-size: 16px;
             font-family: inherit;
-        }
-
-        .form-group textarea {
-            height: 120px;
-            resize: vertical;
-            font-family: monospace;
-            font-size: 12px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 4px;
         }
 
         /* Prompt Display */
@@ -736,11 +729,11 @@
             background: #007bff;
             color: white;
             border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
+            padding: 8px 16px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 12px;
-            margin-top: 10px;
+            font-size: 14px;
+            margin-top: 15px;
         }
 
         .copy-btn:hover {
@@ -786,58 +779,50 @@
 <body>
     <!-- Connection Status -->
     <div class="connection-status" id="connectionStatus">
-        Click "Create Game" or "Join Game" to start playing with friends
+        Create a game or join with a code to start playing
     </div>
 
     <!-- Lobby Modal -->
     <div class="lobby-modal" id="lobbyModal">
         <div class="lobby-panel">
-            <h2>P2P Auction Whiteboard</h2>
-            <p>Connect directly with friends - no servers required!</p>
+            <h2>Auction Whiteboard Game</h2>
+            <p>Create a room or join with a 4-letter code</p>
             
             <div id="lobbyMain" class="lobby-options">
-                <button class="lobby-btn" onclick="p2pManager.createGame()">Create Game</button>
-                <button class="lobby-btn secondary" onclick="p2pManager.showJoinGame()">Join Game</button>
+                <button class="lobby-btn" onclick="roomManager.createRoom()">Create Room</button>
+                <button class="lobby-btn secondary" onclick="roomManager.showJoinRoom()">Join Room</button>
             </div>
 
-            <div id="createGameForm" style="display: none;">
-                <h3>Creating Game</h3>
-                <p>Share this connection code with your friend:</p>
-                <div class="connection-code offer" id="offerCode">Generating connection code...</div>
-                <button class="copy-btn" onclick="copyToClipboard('offerCode')">Copy Code</button>
-                <p><small>Wait for your friend to send you their response code</small></p>
-                <div class="form-group">
-                    <label>Friend's Response Code:</label>
-                    <textarea id="answerInput" placeholder="Paste your friend's response code here"></textarea>
-                </div>
-                <button class="lobby-btn" onclick="p2pManager.processAnswer()">Connect</button>
-                <button class="back-btn" onclick="p2pManager.showMain()">Cancel</button>
+            <div id="createRoomForm" style="display: none;">
+                <h3>Room Created!</h3>
+                <p>Share this code with friends:</p>
+                <div class="game-code-display" id="roomCode">ABCD</div>
+                <button class="copy-btn" onclick="copyToClipboard('roomCode')">Copy Code</button>
+                <p>Waiting for players to join...</p>
+                <div id="waitingPlayers"></div>
+                <button class="lobby-btn" id="startGameBtn" onclick="roomManager.startGame()" style="display: none;">Start Game</button>
+                <button class="back-btn" onclick="roomManager.closeRoom()">Close Room</button>
             </div>
 
-            <div id="joinGameForm" style="display: none;">
-                <h3>Join Game</h3>
+            <div id="joinRoomForm" style="display: none;">
+                <h3>Join Room</h3>
                 <div class="form-group">
                     <label>Your Name:</label>
-                    <input type="text" id="joinName" placeholder="Enter your name" value="Player 2">
+                    <input type="text" id="playerName" placeholder="Enter your name" value="Player">
                 </div>
                 <div class="form-group">
-                    <label>Friend's Connection Code:</label>
-                    <textarea id="offerInput" placeholder="Paste your friend's connection code here"></textarea>
+                    <label>Room Code:</label>
+                    <input type="text" id="roomCodeInput" placeholder="ABCD" maxlength="4">
                 </div>
-                <button class="lobby-btn secondary" onclick="p2pManager.joinGame()">Generate Response</button>
-                <div id="answerSection" style="display: none;">
-                    <p>Send this response code to your friend:</p>
-                    <div class="connection-code" id="answerCode">Response code will appear here</div>
-                    <button class="copy-btn" onclick="copyToClipboard('answerCode')">Copy Response</button>
-                    <p><small>Connection will establish automatically once your friend enters this code</small></p>
-                </div>
-                <button class="back-btn" onclick="p2pManager.showMain()">Back</button>
+                <button class="lobby-btn secondary" onclick="roomManager.joinRoom()">Join</button>
+                <button class="back-btn" onclick="roomManager.showMain()">Back</button>
             </div>
 
-            <div id="waitingRoom" style="display: none;">
-                <h3>Connected!</h3>
-                <div id="waitingPlayers"></div>
-                <button class="lobby-btn" id="startGameBtn" onclick="p2pManager.startGame()" style="display: none;">Start Game</button>
+            <div id="connectedRoom" style="display: none;">
+                <h3>Connected to Room</h3>
+                <div id="roomPlayers"></div>
+                <p>Waiting for host to start the game...</p>
+                <button class="back-btn" onclick="roomManager.leaveRoom()">Leave Room</button>
             </div>
         </div>
     </div>
@@ -936,7 +921,7 @@
             <div class="chat-messages" id="chatMessages">
                 <div class="message">
                     <div class="sender">System</div>
-                    <div class="content">Connect with a friend to start chatting!</div>
+                    <div class="content">Join a room to start chatting!</div>
                 </div>
             </div>
             <div class="chat-input-container">
@@ -946,6 +931,7 @@
                     id="chatInput" 
                     placeholder="Type a message..."
                     maxlength="500"
+                    disabled
                 >
             </div>
         </div>
@@ -955,20 +941,21 @@
         // Global variables
         let whiteboard;
         let gameManager;
-        let p2pManager;
+        let roomManager;
         let chatApp;
 
-        // P2P Connection Manager using WebRTC
-        class P2PManager {
+        // Simple Room Manager using localStorage as temporary signaling
+        class RoomManager {
             constructor() {
-                this.peerConnection = null;
-                this.dataChannel = null;
                 this.isHost = false;
+                this.currentRoom = null;
+                this.players = [];
+                this.connections = new Map(); // playerId -> RTCPeerConnection
+                this.dataChannels = new Map(); // playerId -> RTCDataChannel
                 this.localPlayer = null;
-                this.remotePlayer = null;
-                this.connectionStatus = 'disconnected';
+                this.pollInterval = null;
                 
-                this.updateConnectionStatus('Waiting to connect');
+                this.updateConnectionStatus('Ready to create or join a room');
             }
 
             updateConnectionStatus(status, type = '') {
@@ -979,258 +966,262 @@
 
             showMain() {
                 document.getElementById('lobbyMain').style.display = 'block';
-                document.getElementById('createGameForm').style.display = 'none';
-                document.getElementById('joinGameForm').style.display = 'none';
-                document.getElementById('waitingRoom').style.display = 'none';
+                document.getElementById('createRoomForm').style.display = 'none';
+                document.getElementById('joinRoomForm').style.display = 'none';
+                document.getElementById('connectedRoom').style.display = 'none';
             }
 
-            showJoinGame() {
+            showJoinRoom() {
                 document.getElementById('lobbyMain').style.display = 'none';
-                document.getElementById('joinGameForm').style.display = 'block';
-                document.getElementById('answerSection').style.display = 'none';
+                document.getElementById('joinRoomForm').style.display = 'block';
             }
 
-            async createGame() {
+            generateRoomCode() {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                let result = '';
+                for (let i = 0; i < 4; i++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return result;
+            }
+
+            createRoom() {
                 this.isHost = true;
-                this.localPlayer = { name: 'Host', id: 'host' };
-                
+                this.currentRoom = this.generateRoomCode();
+                this.localPlayer = { 
+                    id: 'host', 
+                    name: 'Host', 
+                    isHost: true,
+                    timestamp: Date.now()
+                };
+
+                // Store room in localStorage with initial data
+                const roomData = {
+                    code: this.currentRoom,
+                    host: this.localPlayer.id,
+                    players: [this.localPlayer],
+                    status: 'waiting',
+                    created: Date.now(),
+                    gameState: null
+                };
+
+                localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
+
                 document.getElementById('lobbyMain').style.display = 'none';
-                document.getElementById('createGameForm').style.display = 'block';
-                
-                this.updateConnectionStatus('Creating connection...', 'connecting');
-                
-                try {
-                    await this.setupPeerConnection();
-                    this.dataChannel = this.peerConnection.createDataChannel('gameData');
-                    this.setupDataChannel(this.dataChannel);
-                    
-                    const offer = await this.peerConnection.createOffer();
-                    await this.peerConnection.setLocalDescription(offer);
-                    
-                    const offerCode = btoa(JSON.stringify(offer));
-                    document.getElementById('offerCode').textContent = offerCode;
-                    
-                    this.updateConnectionStatus('Waiting for friend to respond...', 'connecting');
-                } catch (error) {
-                    console.error('Error creating game:', error);
-                    this.updateConnectionStatus('Failed to create connection', 'error');
-                }
+                document.getElementById('createRoomForm').style.display = 'block';
+                document.getElementById('roomCode').textContent = this.currentRoom;
+
+                this.startPolling();
+                this.updateConnectionStatus(`Room ${this.currentRoom} created`, 'connected');
             }
 
-            async joinGame() {
-                const playerName = document.getElementById('joinName').value.trim() || 'Player 2';
-                const offerCode = document.getElementById('offerInput').value.trim();
-                
-                if (!offerCode) {
-                    alert('Please paste your friend\'s connection code!');
+            async joinRoom() {
+                const playerName = document.getElementById('playerName').value.trim() || 'Player';
+                const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+
+                if (roomCode.length !== 4) {
+                    alert('Please enter a valid 4-letter room code!');
                     return;
                 }
-                
+
+                const roomData = JSON.parse(localStorage.getItem(`room_${roomCode}`) || 'null');
+                if (!roomData) {
+                    alert('Room not found! Please check the code.');
+                    return;
+                }
+
+                if (roomData.status !== 'waiting') {
+                    alert('This room is not available.');
+                    return;
+                }
+
                 this.isHost = false;
-                this.localPlayer = { name: playerName, id: 'guest' };
-                
-                this.updateConnectionStatus('Joining game...', 'connecting');
-                
-                try {
-                    const offer = JSON.parse(atob(offerCode));
-                    
-                    await this.setupPeerConnection();
-                    await this.peerConnection.setRemoteDescription(offer);
-                    
-                    this.peerConnection.ondatachannel = (event) => {
-                        this.dataChannel = event.channel;
-                        this.setupDataChannel(this.dataChannel);
-                    };
-                    
-                    const answer = await this.peerConnection.createAnswer();
-                    await this.peerConnection.setLocalDescription(answer);
-                    
-                    const answerCode = btoa(JSON.stringify(answer));
-                    document.getElementById('answerCode').textContent = answerCode;
-                    document.getElementById('answerSection').style.display = 'block';
-                    
-                    this.updateConnectionStatus('Response generated - share with friend', 'connecting');
-                } catch (error) {
-                    console.error('Error joining game:', error);
-                    this.updateConnectionStatus('Failed to join game', 'error');
-                }
+                this.currentRoom = roomCode;
+                this.localPlayer = { 
+                    id: Math.random().toString(36).substr(2, 9), 
+                    name: playerName, 
+                    isHost: false,
+                    timestamp: Date.now()
+                };
+
+                // Add player to room
+                roomData.players.push(this.localPlayer);
+                localStorage.setItem(`room_${roomCode}`, JSON.stringify(roomData));
+
+                document.getElementById('lobbyMain').style.display = 'none';
+                document.getElementById('joinRoomForm').style.display = 'none';
+                document.getElementById('connectedRoom').style.display = 'block';
+
+                this.startPolling();
+                this.updateConnectionStatus(`Joined room ${roomCode}`, 'connected');
             }
 
-            async processAnswer() {
-                const answerCode = document.getElementById('answerInput').value.trim();
-                
-                if (!answerCode) {
-                    alert('Please paste your friend\'s response code!');
+            startPolling() {
+                this.pollInterval = setInterval(() => {
+                    this.pollRoomUpdates();
+                }, 1000);
+            }
+
+            pollRoomUpdates() {
+                if (!this.currentRoom) return;
+
+                const roomData = JSON.parse(localStorage.getItem(`room_${this.currentRoom}`) || 'null');
+                if (!roomData) {
+                    this.updateConnectionStatus('Room no longer exists', 'error');
+                    this.leaveRoom();
                     return;
                 }
-                
-                try {
-                    const answer = JSON.parse(atob(answerCode));
-                    await this.peerConnection.setRemoteDescription(answer);
-                    
-                    this.updateConnectionStatus('Connecting...', 'connecting');
-                } catch (error) {
-                    console.error('Error processing answer:', error);
-                    this.updateConnectionStatus('Invalid response code', 'error');
+
+                // Update players list
+                this.players = roomData.players || [];
+                this.updatePlayersDisplay();
+
+                // Check for game start
+                if (roomData.status === 'playing' && roomData.gameState) {
+                    this.joinActiveGame(roomData.gameState);
+                }
+
+                // Handle messages
+                if (roomData.messages) {
+                    roomData.messages.forEach(msg => {
+                        if (msg.id && !this.processedMessages?.has(msg.id)) {
+                            this.handleMessage(msg);
+                            if (!this.processedMessages) this.processedMessages = new Set();
+                            this.processedMessages.add(msg.id);
+                        }
+                    });
                 }
             }
 
-            async setupPeerConnection() {
-                const config = {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
-                    ]
-                };
+            updatePlayersDisplay() {
+                const waitingDiv = document.getElementById('waitingPlayers');
+                const roomDiv = document.getElementById('roomPlayers');
                 
-                this.peerConnection = new RTCPeerConnection(config);
-                
-                this.peerConnection.oniceconnectionstatechange = () => {
-                    console.log('ICE connection state:', this.peerConnection.iceConnectionState);
-                    
-                    if (this.peerConnection.iceConnectionState === 'connected' || 
-                        this.peerConnection.iceConnectionState === 'completed') {
-                        this.onConnectionEstablished();
-                    } else if (this.peerConnection.iceConnectionState === 'failed' || 
-                               this.peerConnection.iceConnectionState === 'disconnected') {
-                        this.updateConnectionStatus('Connection lost', 'error');
-                    }
-                };
-                
-                this.peerConnection.onicecandidate = (event) => {
-                    // ICE candidates are automatically handled by the browser
-                };
-            }
+                const content = '<h4>Players in room:</h4>' + 
+                    this.players.map(p => `<div>${p.name} ${p.isHost ? '(Host)' : ''}</div>`).join('');
 
-            setupDataChannel(channel) {
-                channel.onopen = () => {
-                    console.log('Data channel opened');
-                    this.onConnectionEstablished();
-                };
-                
-                channel.onmessage = (event) => {
-                    this.handleMessage(JSON.parse(event.data));
-                };
-                
-                channel.onerror = (error) => {
-                    console.error('Data channel error:', error);
-                    this.updateConnectionStatus('Connection error', 'error');
-                };
-                
-                channel.onclose = () => {
-                    console.log('Data channel closed');
-                    this.updateConnectionStatus('Connection closed', 'error');
-                };
-            }
+                if (waitingDiv) waitingDiv.innerHTML = content;
+                if (roomDiv) roomDiv.innerHTML = content;
 
-            onConnectionEstablished() {
-                this.connectionStatus = 'connected';
-                this.updateConnectionStatus('Connected to friend!', 'connected');
-                
-                if (this.isHost) {
-                    this.remotePlayer = { name: 'Guest Player', id: 'guest' };
-                } else {
-                    this.remotePlayer = { name: 'Host Player', id: 'host' };
-                }
-                
-                this.showWaitingRoom();
-                
-                // Exchange player info
-                this.sendMessage({
-                    type: 'playerInfo',
-                    player: this.localPlayer
-                });
-            }
-
-            showWaitingRoom() {
-                document.getElementById('lobbyMain').style.display = 'none';
-                document.getElementById('createGameForm').style.display = 'none';
-                document.getElementById('joinGameForm').style.display = 'none';
-                document.getElementById('waitingRoom').style.display = 'block';
-                
-                this.updateWaitingRoom();
-            }
-
-            updateWaitingRoom() {
-                const waitingPlayersDiv = document.getElementById('waitingPlayers');
-                waitingPlayersDiv.innerHTML = '<h4>Connected Players:</h4>';
-                
-                const localDiv = document.createElement('div');
-                localDiv.innerHTML = `${this.localPlayer.name} (You) ${this.isHost ? '- Host' : ''}`;
-                waitingPlayersDiv.appendChild(localDiv);
-                
-                if (this.remotePlayer) {
-                    const remoteDiv = document.createElement('div');
-                    remoteDiv.innerHTML = `${this.remotePlayer.name} ${!this.isHost ? '- Host' : ''}`;
-                    waitingPlayersDiv.appendChild(remoteDiv);
-                }
-                
+                // Show start button for host when enough players
                 const startBtn = document.getElementById('startGameBtn');
-                if (this.isHost && this.remotePlayer) {
+                if (startBtn && this.isHost && this.players.length >= 2) {
                     startBtn.style.display = 'block';
-                } else {
+                } else if (startBtn) {
                     startBtn.style.display = 'none';
                 }
             }
 
-            sendMessage(data) {
-                if (this.dataChannel && this.dataChannel.readyState === 'open') {
-                    this.dataChannel.send(JSON.stringify(data));
+            sendMessage(type, data) {
+                if (!this.currentRoom) return;
+
+                const roomData = JSON.parse(localStorage.getItem(`room_${this.currentRoom}`) || '{}');
+                if (!roomData.messages) roomData.messages = [];
+
+                const message = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    type: type,
+                    data: data,
+                    from: this.localPlayer.id,
+                    timestamp: Date.now()
+                };
+
+                roomData.messages.push(message);
+                
+                // Keep only last 50 messages
+                if (roomData.messages.length > 50) {
+                    roomData.messages = roomData.messages.slice(-50);
                 }
+
+                localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
             }
 
-            handleMessage(data) {
-                switch (data.type) {
-                    case 'playerInfo':
-                        this.remotePlayer = data.player;
-                        this.updateWaitingRoom();
-                        break;
-                    case 'startGame':
-                        this.joinActiveGame(data.gameData);
-                        break;
+            handleMessage(message) {
+                if (message.from === this.localPlayer.id) return; // Ignore own messages
+
+                switch (message.type) {
                     case 'gameUpdate':
-                        gameManager.handleRemoteUpdate(data.update);
+                        if (gameManager) {
+                            gameManager.handleRemoteUpdate(message.data);
+                        }
                         break;
                     case 'chat':
-                        chatApp.addMessage(data.content, data.sender, false);
+                        if (chatApp) {
+                            chatApp.addMessage(message.data.content, message.data.sender, false);
+                        }
                         break;
                 }
             }
 
             startGame() {
-                if (!this.isHost || !this.remotePlayer) return;
-                
-                const players = [
-                    { ...this.localPlayer, money: 10000, secretValues: this.generateSecretValues() },
-                    { ...this.remotePlayer, money: 10000, secretValues: this.generateSecretValues() }
-                ];
-                
-                const gameData = {
+                if (!this.isHost || this.players.length < 2) return;
+
+                const players = this.players.map((player, index) => ({
+                    ...player,
+                    money: 10000,
+                    secretValues: {
+                        low: Math.floor(Math.random() * 500) + 200,
+                        high: Math.floor(Math.random() * 1000) + 800
+                    }
+                }));
+
+                const gameState = {
                     players: players,
                     phase: 'drawing',
                     round: 1,
                     currentPlayer: 0
                 };
-                
-                this.sendMessage({
-                    type: 'startGame',
-                    gameData: gameData
-                });
-                
-                this.joinActiveGame(gameData);
+
+                // Update room status
+                const roomData = JSON.parse(localStorage.getItem(`room_${this.currentRoom}`) || '{}');
+                roomData.status = 'playing';
+                roomData.gameState = gameState;
+                localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
+
+                this.joinActiveGame(gameState);
             }
 
-            generateSecretValues() {
-                return {
-                    low: Math.floor(Math.random() * 500) + 200,
-                    high: Math.floor(Math.random() * 1000) + 800
-                };
-            }
+            joinActiveGame(gameState) {
+                if (this.pollInterval) {
+                    clearInterval(this.pollInterval);
+                    this.pollInterval = null;
+                }
 
-            joinActiveGame(gameData) {
                 document.getElementById('lobbyModal').style.display = 'none';
-                gameManager.initializeFromP2P(gameData);
+                gameManager.initializeFromRoom(gameState);
                 chatApp.enableChat();
+            }
+
+            closeRoom() {
+                if (this.currentRoom) {
+                    localStorage.removeItem(`room_${this.currentRoom}`);
+                }
+                this.leaveRoom();
+            }
+
+            leaveRoom() {
+                if (this.pollInterval) {
+                    clearInterval(this.pollInterval);
+                    this.pollInterval = null;
+                }
+
+                if (this.currentRoom && this.localPlayer && !this.isHost) {
+                    // Remove self from room
+                    const roomData = JSON.parse(localStorage.getItem(`room_${this.currentRoom}`) || '{}');
+                    if (roomData.players) {
+                        roomData.players = roomData.players.filter(p => p.id !== this.localPlayer.id);
+                        localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
+                    }
+                }
+
+                this.currentRoom = null;
+                this.localPlayer = null;
+                this.players = [];
+                this.isHost = false;
+                this.processedMessages = null;
+                
+                this.showMain();
+                this.updateConnectionStatus('Disconnected');
             }
         }
 
@@ -1287,11 +1278,11 @@
                 });
             }
 
-            initializeFromP2P(gameData) {
-                this.players = gameData.players;
-                this.gameState = gameData.phase;
-                this.currentRound = gameData.round;
-                this.currentPlayer = gameData.currentPlayer;
+            initializeFromRoom(gameState) {
+                this.players = gameState.players;
+                this.gameState = gameState.phase;
+                this.currentRound = gameState.round;
+                this.currentPlayer = gameState.currentPlayer;
                 
                 this.updateUI();
                 
@@ -1301,16 +1292,13 @@
             }
 
             broadcastUpdate(update) {
-                if (p2pManager.isHost) {
-                    p2pManager.sendMessage({
-                        type: 'gameUpdate',
-                        update: update
-                    });
+                if (roomManager.isHost) {
+                    roomManager.sendMessage('gameUpdate', update);
                 }
             }
 
             handleRemoteUpdate(update) {
-                // Handle updates from remote player
+                // Handle updates from other players
                 Object.assign(this, update);
                 
                 if (update.phase && update.phase !== this.gameState) {
@@ -1361,12 +1349,12 @@
             }
 
             isMyTurn() {
-                const myPlayerId = p2pManager.localPlayer?.id;
+                const myPlayerId = roomManager.localPlayer?.id;
                 return this.players[this.currentPlayer]?.id === myPlayerId;
             }
 
             getMyPlayer() {
-                const myPlayerId = p2pManager.localPlayer?.id;
+                const myPlayerId = roomManager.localPlayer?.id;
                 return this.players.find(p => p.id === myPlayerId);
             }
             
@@ -1553,7 +1541,7 @@
                 
                 this.currentAuctionIndex++;
                 
-                if (p2pManager.isHost) {
+                if (roomManager.isHost) {
                     const update = {
                         players: this.players,
                         currentAuctionIndex: this.currentAuctionIndex
@@ -1583,12 +1571,12 @@
                 document.querySelector('.toolbar').style.display = 'flex';
                 
                 if (this.currentRound > this.maxRounds) {
-                    if (p2pManager.isHost) {
+                    if (roomManager.isHost) {
                         this.broadcastUpdate({ phase: 'results' });
                     }
                     this.endGame();
                 } else {
-                    if (p2pManager.isHost) {
+                    if (roomManager.isHost) {
                         const update = {
                             phase: 'drawing',
                             round: this.currentRound,
@@ -1658,8 +1646,8 @@
                 document.querySelector('.toolbar').style.display = 'flex';
                 
                 whiteboard.clearCanvas();
-                p2pManager.showMain();
-                p2pManager.updateConnectionStatus('Disconnected - Create or join a new game');
+                roomManager.showMain();
+                roomManager.updateConnectionStatus('Disconnected');
                 this.updateUI();
             }
             
@@ -1732,13 +1720,13 @@
                         playerItem.style.borderLeft = '3px solid #2196f3';
                     }
                     
-                    const isMe = player.id === p2pManager.localPlayer?.id;
+                    const isMe = player.id === roomManager.localPlayer?.id;
                     
                     playerItem.innerHTML = `
                         <div>
                             <div class="player-name">${player.name} ${isMe ? '(You)' : ''}</div>
                             <div class="player-values">Values: $${player.secretValues?.low || 0}-$${player.secretValues?.high || 0}</div>
-                            <div class="player-status">${p2pManager.connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}</div>
+                            <div class="player-status">Connected</div>
                         </div>
                         <div class="player-money">$${player.money?.toLocaleString() || '0'}</div>
                     `;
@@ -1748,7 +1736,7 @@
             }
         }
 
-        // Whiteboard App (same as before, keeping original functionality)
+        // Whiteboard App (same as before)
         class WhiteboardApp {
             constructor() {
                 this.canvas = document.getElementById('whiteboard');
@@ -2098,15 +2086,14 @@
                 if (!this.enabled) return;
                 
                 const message = this.chatInput.value.trim();
-                if (!message || !p2pManager.localPlayer) return;
+                if (!message || !roomManager.localPlayer) return;
                 
-                p2pManager.sendMessage({
-                    type: 'chat',
+                roomManager.sendMessage('chat', {
                     content: message,
-                    sender: p2pManager.localPlayer.name
+                    sender: roomManager.localPlayer.name
                 });
                 
-                this.addMessage(message, p2pManager.localPlayer.name, true);
+                this.addMessage(message, roomManager.localPlayer.name, true);
                 this.chatInput.value = '';
             }
             
@@ -2171,7 +2158,7 @@
         window.addEventListener('load', () => {
             whiteboard = new WhiteboardApp();
             gameManager = new GameManager();
-            p2pManager = new P2PManager();
+            roomManager = new RoomManager();
             chatApp = new ChatApp();
         });
     </script>
