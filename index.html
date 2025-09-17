@@ -81,6 +81,13 @@
         <div class="panel">
             <h2>Auction Game</h2>
             
+            <div class="setup-panel">
+                <h4>Setup Required (1 minute)</h4>
+                <p>1. Go to <a href="https://jsonbin.io" target="_blank">jsonbin.io</a><br>
+                2. Create free account<br>
+                3. Copy your API key<br>
+                4. Replace YOUR_API_KEY below with your key</p>
+            </div>
             
             <div id="mainMenu">
                 <button class="btn" onclick="createRoom()">Host Game</button>
@@ -159,9 +166,10 @@
     </div>
 
     <script>
-        // JSONBin.io Configuration
-        const API_KEY = '$2a$10$edjc/jROwDhY9gS3YVl/YuLytJ1KCw.H.Dk78Z7FbhvfvHBVyRs12'; // Replace with your actual API key from jsonbin.io
+        // JSONBin.io Configuration (replace with your actual API key)
+        const API_KEY = '$2a$10$edjc/jROwDhY9gS3YVl/YuLytJ1KCw.H.Dk78Z7FbhvfvHBVyRs12'; // Get correct key from jsonbin.io
         const BASE_URL = 'https://api.jsonbin.io/v3/b';
+        const USE_LOCAL_STORAGE = false; // Set to false when you have the correct API key
         
         // Global state
         let isHost = false, roomCode = '', localPlayer = null, players = [], gameState = 'lobby';
@@ -183,10 +191,6 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             setupEventListeners();
-            
-            if (API_KEY === 'YOUR_API_KEY') {
-                updateStatus('Please replace YOUR_API_KEY with your jsonbin.io API key', 'error');
-            }
         };
 
         function setupEventListeners() {
@@ -273,11 +277,6 @@
         }
 
         async function createRoom() {
-            if (API_KEY === 'YOUR_API_KEY') {
-                alert('Please get your API key from jsonbin.io and replace YOUR_API_KEY in the code!');
-                return;
-            }
-
             roomCode = generateRoomCode();
             isHost = true;
             localPlayer = { id: 'host', name: 'Host', money: 10000, isHost: true };
@@ -294,24 +293,44 @@
                 created: Date.now()
             };
 
+            if (USE_LOCAL_STORAGE) {
+                // Use localStorage for local testing
+                localStorage.setItem(`room_${roomCode}`, JSON.stringify(roomData));
+                roomBinId = `local_${roomCode}`;
+                
+                console.log('Room created locally:', roomCode);
+                
+                document.getElementById('mainMenu').classList.add('hidden');
+                document.getElementById('hostPanel').classList.remove('hidden');
+                document.getElementById('roomCode').textContent = roomCode;
+                
+                startPolling();
+                updatePlayers();
+                updateStatus(`Room ${roomCode} created (local)`, 'connected');
+                enableChat();
+                return;
+            }
+
             try {
-                const response = await fetch(BASE_URL, {
+                // Try JSONBin.io API
+                const response = await fetch(`${BASE_URL}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Master-Key': API_KEY
+                        'X-Master-Key': API_KEY,
+                        'X-Bin-Name': `room_${roomCode}`
                     },
                     body: JSON.stringify(roomData)
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to create room');
+                    throw new Error(`API Error: ${response.status}`);
                 }
 
                 const result = await response.json();
                 roomBinId = result.metadata.id;
                 
-                await storeRoomMapping(roomCode, roomBinId);
+                console.log('Room created successfully:', roomCode, 'Bin ID:', roomBinId);
                 
                 document.getElementById('mainMenu').classList.add('hidden');
                 document.getElementById('hostPanel').classList.remove('hidden');
@@ -324,7 +343,20 @@
                 
             } catch (error) {
                 console.error('Error creating room:', error);
-                updateStatus('Failed to create room. Check your API key.', 'error');
+                updateStatus('API failed - using local mode', 'error');
+                
+                // Fallback to localStorage
+                localStorage.setItem(`room_${roomCode}`, JSON.stringify(roomData));
+                roomBinId = `local_${roomCode}`;
+                
+                document.getElementById('mainMenu').classList.add('hidden');
+                document.getElementById('hostPanel').classList.remove('hidden');
+                document.getElementById('roomCode').textContent = roomCode;
+                
+                startPolling();
+                updatePlayers();
+                updateStatus(`Room ${roomCode} created (local fallback)`, 'connected');
+                enableChat();
             }
         }
 
@@ -370,33 +402,76 @@
                 return;
             }
 
+            if (USE_LOCAL_STORAGE) {
+                // Use localStorage for local testing
+                const roomData = JSON.parse(localStorage.getItem(`room_${code}`) || 'null');
+                if (!roomData) {
+                    alert('Room not found! Make sure you\'re on the same device as the host.');
+                    return;
+                }
+
+                roomCode = code;
+                roomBinId = `local_${code}`;
+                isHost = false;
+                localPlayer = { 
+                    id: Math.random().toString(36).substr(2, 9), 
+                    name: name, 
+                    money: 10000, 
+                    isHost: false 
+                };
+
+                roomData.players.push(localPlayer);
+                localStorage.setItem(`room_${code}`, JSON.stringify(roomData));
+
+                document.getElementById('lobby').classList.add('hidden');
+                startPolling();
+                updateStatus(`Joined room ${code} (local)`, 'connected');
+                enableChat();
+                return;
+            }
+
             try {
-                // Get room bin ID from mapping
-                const mappingResponse = await fetch(`${BASE_URL}/ROOM_MAPPINGS`, {
+                // Try JSONBin.io API
+                const searchResponse = await fetch(`${BASE_URL}`, {
                     headers: { 'X-Master-Key': API_KEY }
                 });
+
+                if (!searchResponse.ok) {
+                    throw new Error('Failed to search for rooms');
+                }
+
+                const bins = await searchResponse.json();
                 
-                if (!mappingResponse.ok) {
-                    alert('Room not found!');
-                    return;
+                let foundBin = null;
+                if (bins.record && Array.isArray(bins.record)) {
+                    foundBin = bins.record.find(bin => bin.name === `room_${code}`);
                 }
 
-                const mappings = await mappingResponse.json();
-                roomBinId = mappings.record[code];
-
-                if (!roomBinId) {
-                    alert('Room not found!');
-                    return;
+                if (!foundBin) {
+                    try {
+                        const directResponse = await fetch(`${BASE_URL}/room_${code}`, {
+                            headers: { 'X-Master-Key': API_KEY }
+                        });
+                        
+                        if (directResponse.ok) {
+                            const roomData = await directResponse.json();
+                            roomBinId = roomData.metadata.id;
+                        } else {
+                            throw new Error('Room not found');
+                        }
+                    } catch (directError) {
+                        throw new Error('Room not found');
+                    }
+                } else {
+                    roomBinId = foundBin.id;
                 }
 
-                // Get room data
                 const roomResponse = await fetch(`${BASE_URL}/${roomBinId}`, {
                     headers: { 'X-Master-Key': API_KEY }
                 });
 
                 if (!roomResponse.ok) {
-                    alert('Room no longer exists!');
-                    return;
+                    throw new Error('Room no longer exists');
                 }
 
                 const roomData = await roomResponse.json();
@@ -410,7 +485,6 @@
                     isHost: false 
                 };
 
-                // Add player to room
                 roomData.record.players.push(localPlayer);
                 await updateRoom(roomData.record);
 
@@ -421,7 +495,31 @@
 
             } catch (error) {
                 console.error('Error joining room:', error);
-                updateStatus('Failed to join room. Check the code.', 'error');
+                
+                // Fallback to localStorage
+                const roomData = JSON.parse(localStorage.getItem(`room_${code}`) || 'null');
+                if (!roomData) {
+                    alert('Room not found! Check the code or make sure host created the room.');
+                    return;
+                }
+
+                roomCode = code;
+                roomBinId = `local_${code}`;
+                isHost = false;
+                localPlayer = { 
+                    id: Math.random().toString(36).substr(2, 9), 
+                    name: name, 
+                    money: 10000, 
+                    isHost: false 
+                };
+
+                roomData.players.push(localPlayer);
+                localStorage.setItem(`room_${code}`, JSON.stringify(roomData));
+
+                document.getElementById('lobby').classList.add('hidden');
+                startPolling();
+                updateStatus(`Joined room ${code} (local fallback)`, 'connected');
+                enableChat();
             }
         }
 
@@ -450,17 +548,30 @@
             if (!roomBinId) return;
 
             try {
-                const response = await fetch(`${BASE_URL}/${roomBinId}`, {
-                    headers: { 'X-Master-Key': API_KEY }
-                });
+                let roomData;
+                
+                if (USE_LOCAL_STORAGE || roomBinId.startsWith('local_')) {
+                    // Use localStorage
+                    const stored = localStorage.getItem(`room_${roomCode}`);
+                    if (!stored) {
+                        updateStatus('Room no longer exists', 'error');
+                        return;
+                    }
+                    roomData = JSON.parse(stored);
+                } else {
+                    // Use JSONBin.io API
+                    const response = await fetch(`${BASE_URL}/${roomBinId}`, {
+                        headers: { 'X-Master-Key': API_KEY }
+                    });
 
-                if (!response.ok) {
-                    updateStatus('Room no longer exists', 'error');
-                    return;
+                    if (!response.ok) {
+                        updateStatus('Room no longer exists', 'error');
+                        return;
+                    }
+
+                    const data = await response.json();
+                    roomData = data.record;
                 }
-
-                const data = await response.json();
-                const roomData = data.record;
 
                 // Update state
                 players = roomData.players || [];
