@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Auction Whiteboard Game</title>
+    <title>P2P Auction Whiteboard Game - Enhanced Multiplayer</title>
     <style>
         * {
             margin: 0;
@@ -88,6 +88,13 @@
 
         .round-info {
             font-size: 14px;
+        }
+
+        .phase-info {
+            font-size: 14px;
+            background: rgba(255,255,255,0.1);
+            padding: 4px 12px;
+            border-radius: 15px;
         }
 
         .game-controls {
@@ -208,6 +215,32 @@
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 4px;
+        }
+
+        .player-settings {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .settings-row label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .settings-row input, .settings-row select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 120px;
         }
 
         /* Prompt Display */
@@ -510,7 +543,9 @@
             border-radius: 15px;
             padding: 20px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-            min-width: 250px;
+            min-width: 280px;
+            max-height: 400px;
+            overflow-y: auto;
             z-index: 1000;
         }
 
@@ -522,6 +557,22 @@
             text-align: center;
             border-bottom: 2px solid #eee;
             padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .player-count {
+            background: #007bff;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
         }
 
         .player-item {
@@ -539,6 +590,10 @@
         .player-name {
             font-weight: 500;
             color: #333;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .player-money {
@@ -556,6 +611,16 @@
             font-size: 10px;
             color: #888;
             margin-top: 2px;
+        }
+
+        .player-status.submitted {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .player-status.drawing {
+            color: #ffc107;
+            font-weight: bold;
         }
 
         /* Results Modal */
@@ -580,9 +645,11 @@
             background: white;
             border-radius: 20px;
             padding: 40px;
-            max-width: 600px;
+            max-width: 700px;
             width: 90%;
             text-align: center;
+            max-height: 80vh;
+            overflow-y: auto;
         }
 
         .results-panel h2 {
@@ -615,6 +682,16 @@
             box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3);
         }
 
+        .standing-item.second {
+            background: linear-gradient(135deg, #c0c0c0 0%, #e0e0e0 100%);
+            border-left-color: #888;
+        }
+
+        .standing-item.third {
+            background: linear-gradient(135deg, #cd7f32 0%, #daa520 100%);
+            border-left-color: #8b4513;
+        }
+
         /* Chat Container */
         .chat-container {
             position: fixed;
@@ -639,6 +716,20 @@
             font-weight: 600;
             color: #333;
             text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-toggle {
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            cursor: pointer;
         }
 
         .chat-messages {
@@ -740,6 +831,35 @@
             background: #0056b3;
         }
 
+        /* Loading and Connection States */
+        .connection-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .connection-indicator.connected {
+            background: #28a745;
+        }
+
+        .connection-indicator.connecting {
+            background: #ffc107;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-indicator.disconnected {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Mobile Responsive */
         @media (max-width: 768px) {
             .game-info {
                 flex-direction: column;
@@ -760,6 +880,7 @@
                 position: relative;
                 margin: 10px;
                 width: calc(100% - 20px);
+                max-height: 200px;
             }
 
             .bidding-panel {
@@ -773,12 +894,35 @@
                 bottom: 10px;
                 right: 10px;
             }
+
+            .results-panel {
+                margin: 20px;
+                padding: 20px;
+            }
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #28a745);
+            width: 0%;
+            transition: width 0.3s ease;
         }
     </style>
 </head>
 <body>
     <!-- Connection Status -->
     <div class="connection-status" id="connectionStatus">
+        <span class="connection-indicator disconnected" id="connectionIndicator"></span>
         Create a game or join with a code to start playing
     </div>
 
@@ -786,7 +930,7 @@
     <div class="lobby-modal" id="lobbyModal">
         <div class="lobby-panel">
             <h2>Auction Whiteboard Game</h2>
-            <p>Create a room or join with a 4-letter code</p>
+            <p>Enhanced multiplayer support for 2-8 players</p>
             
             <div id="lobbyMain" class="lobby-options">
                 <button class="lobby-btn" onclick="roomManager.createRoom()">Create Room</button>
@@ -798,8 +942,46 @@
                 <p>Share this code with friends:</p>
                 <div class="game-code-display" id="roomCode">ABCD</div>
                 <button class="copy-btn" onclick="copyToClipboard('roomCode')">Copy Code</button>
+                
+                <div class="player-settings">
+                    <h4>Game Settings</h4>
+                    <div class="settings-row">
+                        <label>Max Players:</label>
+                        <select id="maxPlayers">
+                            <option value="2">2 Players</option>
+                            <option value="3">3 Players</option>
+                            <option value="4" selected>4 Players</option>
+                            <option value="5">5 Players</option>
+                            <option value="6">6 Players</option>
+                            <option value="7">7 Players</option>
+                            <option value="8">8 Players</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <label>Drawing Time:</label>
+                        <select id="drawingTime">
+                            <option value="60">60 seconds</option>
+                            <option value="90" selected>90 seconds</option>
+                            <option value="120">120 seconds</option>
+                            <option value="180">180 seconds</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <label>Bidding Time:</label>
+                        <select id="biddingTime">
+                            <option value="20">20 seconds</option>
+                            <option value="30" selected>30 seconds</option>
+                            <option value="45">45 seconds</option>
+                            <option value="60">60 seconds</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <p>Waiting for players to join...</p>
                 <div id="waitingPlayers"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="playerProgress"></div>
+                </div>
                 <button class="lobby-btn" id="startGameBtn" onclick="roomManager.startGame()" style="display: none;">Start Game</button>
                 <button class="back-btn" onclick="roomManager.closeRoom()">Close Room</button>
             </div>
@@ -808,7 +990,7 @@
                 <h3>Join Room</h3>
                 <div class="form-group">
                     <label>Your Name:</label>
-                    <input type="text" id="playerName" placeholder="Enter your name" value="Player">
+                    <input type="text" id="playerName" placeholder="Enter your name" value="Player" maxlength="20">
                 </div>
                 <div class="form-group">
                     <label>Room Code:</label>
@@ -821,6 +1003,9 @@
             <div id="connectedRoom" style="display: none;">
                 <h3>Connected to Room</h3>
                 <div id="roomPlayers"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="roomPlayerProgress"></div>
+                </div>
                 <p>Waiting for host to start the game...</p>
                 <button class="back-btn" onclick="roomManager.leaveRoom()">Leave Room</button>
             </div>
@@ -861,6 +1046,7 @@
                 <div class="game-timer" id="gameTimer">Ready to Start</div>
                 <div class="money-display" id="moneyDisplay">Money: $10,000</div>
                 <div class="round-info" id="roundInfo">Round 1 of 6</div>
+                <div class="phase-info" id="phaseInfo">Lobby</div>
             </div>
             <div class="game-controls">
                 <button class="game-btn" id="submitDrawing" onclick="gameManager.submitDrawing()" disabled>Submit Drawing</button>
@@ -876,7 +1062,10 @@
 
         <!-- Players Panel -->
         <div class="players-panel">
-            <div class="players-title">Players</div>
+            <div class="players-title">
+                Players 
+                <div class="player-count" id="playerCount">0</div>
+            </div>
             <div id="playersList"></div>
         </div>
         
@@ -917,7 +1106,10 @@
 
         <!-- Chat Section -->
         <div class="chat-container">
-            <div class="chat-header">Game Chat</div>
+            <div class="chat-header">
+                Game Chat
+                <button class="chat-toggle" id="chatToggle" onclick="chatApp.toggleChat()">−</button>
+            </div>
             <div class="chat-messages" id="chatMessages">
                 <div class="message">
                     <div class="sender">System</div>
@@ -944,24 +1136,39 @@
         let roomManager;
         let chatApp;
 
-        // Simple Room Manager using localStorage as temporary signaling
+        // Enhanced Room Manager with better multiplayer support
         class RoomManager {
             constructor() {
                 this.isHost = false;
                 this.currentRoom = null;
                 this.players = [];
-                this.connections = new Map(); // playerId -> RTCPeerConnection
-                this.dataChannels = new Map(); // playerId -> RTCDataChannel
+                this.maxPlayers = 4;
+                this.gameSettings = {
+                    maxPlayers: 4,
+                    drawingTime: 90,
+                    biddingTime: 30
+                };
+                this.connections = new Map();
+                this.dataChannels = new Map();
                 this.localPlayer = null;
                 this.pollInterval = null;
+                this.lastHeartbeat = Date.now();
                 
                 this.updateConnectionStatus('Ready to create or join a room');
             }
 
             updateConnectionStatus(status, type = '') {
                 const statusEl = document.getElementById('connectionStatus');
-                statusEl.textContent = status;
-                statusEl.className = `connection-status ${type}`;
+                const indicatorEl = document.getElementById('connectionIndicator');
+                
+                if (statusEl) {
+                    statusEl.textContent = status;
+                    statusEl.className = `connection-status ${type}`;
+                }
+                
+                if (indicatorEl) {
+                    indicatorEl.className = `connection-indicator ${type || 'disconnected'}`;
+                }
             }
 
             showMain() {
@@ -988,21 +1195,29 @@
             createRoom() {
                 this.isHost = true;
                 this.currentRoom = this.generateRoomCode();
+                
+                // Get settings from UI
+                this.gameSettings.maxPlayers = parseInt(document.getElementById('maxPlayers').value);
+                this.gameSettings.drawingTime = parseInt(document.getElementById('drawingTime').value);
+                this.gameSettings.biddingTime = parseInt(document.getElementById('biddingTime').value);
+                
                 this.localPlayer = { 
                     id: 'host', 
                     name: 'Host', 
                     isHost: true,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    lastSeen: Date.now()
                 };
 
-                // Store room in localStorage with initial data
                 const roomData = {
                     code: this.currentRoom,
                     host: this.localPlayer.id,
                     players: [this.localPlayer],
                     status: 'waiting',
                     created: Date.now(),
-                    gameState: null
+                    gameState: null,
+                    settings: this.gameSettings,
+                    lastActivity: Date.now()
                 };
 
                 localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
@@ -1012,8 +1227,8 @@
                 document.getElementById('roomCode').textContent = this.currentRoom;
 
                 this.startPolling();
-                chatApp.enableChat(); // Enable chat for host too
-                this.updateConnectionStatus(`Room ${this.currentRoom} created`, 'connected');
+                chatApp.enableChat();
+                this.updateConnectionStatus(`Room ${this.currentRoom} created - waiting for players`, 'connected');
             }
 
             async joinRoom() {
@@ -1032,21 +1247,35 @@
                 }
 
                 if (roomData.status !== 'waiting') {
-                    alert('This room is not available.');
+                    alert('This room is not available for joining.');
+                    return;
+                }
+
+                if (roomData.players.length >= roomData.settings.maxPlayers) {
+                    alert(`Room is full! Maximum ${roomData.settings.maxPlayers} players allowed.`);
+                    return;
+                }
+
+                // Check for duplicate names
+                if (roomData.players.some(p => p.name === playerName)) {
+                    alert('A player with this name is already in the room. Please choose a different name.');
                     return;
                 }
 
                 this.isHost = false;
                 this.currentRoom = roomCode;
+                this.gameSettings = roomData.settings;
+                
                 this.localPlayer = { 
                     id: Math.random().toString(36).substr(2, 9), 
                     name: playerName, 
                     isHost: false,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    lastSeen: Date.now()
                 };
 
-                // Add player to room
                 roomData.players.push(this.localPlayer);
+                roomData.lastActivity = Date.now();
                 localStorage.setItem(`room_${roomCode}`, JSON.stringify(roomData));
 
                 document.getElementById('lobbyMain').style.display = 'none';
@@ -1054,14 +1283,60 @@
                 document.getElementById('connectedRoom').style.display = 'block';
 
                 this.startPolling();
-                chatApp.enableChat(); // Enable chat as soon as connected
+                chatApp.enableChat();
                 this.updateConnectionStatus(`Joined room ${roomCode}`, 'connected');
             }
 
             startPolling() {
                 this.pollInterval = setInterval(() => {
                     this.pollRoomUpdates();
+                    this.sendHeartbeat();
+                    this.cleanupDisconnectedPlayers();
                 }, 1000);
+            }
+
+            sendHeartbeat() {
+                if (!this.currentRoom || !this.localPlayer) return;
+                
+                const roomData = JSON.parse(localStorage.getItem(`room_${this.currentRoom}`) || '{}');
+                if (!roomData.players) return;
+                
+                // Update our last seen timestamp
+                const playerIndex = roomData.players.findIndex(p => p.id === this.localPlayer.id);
+                if (playerIndex !== -1) {
+                    roomData.players[playerIndex].lastSeen = Date.now();
+                    roomData.lastActivity = Date.now();
+                    localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
+                }
+            }
+
+            cleanupDisconnectedPlayers() {
+                if (!this.isHost || !this.currentRoom) return;
+                
+                const roomData = JSON.parse(localStorage.getItem(`room_${this.currentRoom}`) || '{}');
+                if (!roomData.players) return;
+                
+                const now = Date.now();
+                const timeoutMs = 10000; // 10 seconds timeout
+                
+                const activePlayers = roomData.players.filter(player => {
+                    if (player.id === this.localPlayer.id) return true; // Keep ourselves
+                    return (now - player.lastSeen) < timeoutMs;
+                });
+                
+                if (activePlayers.length !== roomData.players.length) {
+                    roomData.players = activePlayers;
+                    localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
+                    
+                    // Notify about disconnected players
+                    const disconnectedCount = roomData.players.length - activePlayers.length;
+                    if (disconnectedCount > 0) {
+                        this.sendMessage('chat', {
+                            content: `${disconnectedCount} player(s) disconnected`,
+                            sender: 'System'
+                        });
+                    }
+                }
             }
 
             pollRoomUpdates() {
@@ -1085,7 +1360,6 @@
 
                 // Handle messages
                 if (roomData.messages) {
-                    // Initialize processedMessages if it doesn't exist
                     if (!this.processedMessages) {
                         this.processedMessages = new Set();
                     }
@@ -1102,17 +1376,35 @@
             updatePlayersDisplay() {
                 const waitingDiv = document.getElementById('waitingPlayers');
                 const roomDiv = document.getElementById('roomPlayers');
+                const playerCount = document.getElementById('playerCount');
+                
+                if (playerCount) {
+                    playerCount.textContent = this.players.length;
+                }
                 
                 const content = '<h4>Players in room:</h4>' + 
-                    this.players.map(p => `<div>${p.name} ${p.isHost ? '(Host)' : ''}</div>`).join('');
+                    this.players.map(p => {
+                        const status = p.id === this.localPlayer?.id ? ' (You)' : '';
+                        const host = p.isHost ? ' (Host)' : '';
+                        return `<div>${p.name}${status}${host}</div>`;
+                    }).join('');
 
                 if (waitingDiv) waitingDiv.innerHTML = content;
                 if (roomDiv) roomDiv.innerHTML = content;
 
-                // Show start button for host when enough players
+                // Update progress bars
+                const progressFill = Math.min(100, (this.players.length / this.gameSettings.maxPlayers) * 100);
+                const playerProgress = document.getElementById('playerProgress');
+                const roomPlayerProgress = document.getElementById('roomPlayerProgress');
+                
+                if (playerProgress) playerProgress.style.width = `${progressFill}%`;
+                if (roomPlayerProgress) roomPlayerProgress.style.width = `${progressFill}%`;
+
+                // Show start button for host when minimum players reached
                 const startBtn = document.getElementById('startGameBtn');
                 if (startBtn && this.isHost && this.players.length >= 2) {
                     startBtn.style.display = 'block';
+                    startBtn.textContent = `Start Game (${this.players.length}/${this.gameSettings.maxPlayers} players)`;
                 } else if (startBtn) {
                     startBtn.style.display = 'none';
                 }
@@ -1134,16 +1426,17 @@
 
                 roomData.messages.push(message);
                 
-                // Keep only last 50 messages
-                if (roomData.messages.length > 50) {
-                    roomData.messages = roomData.messages.slice(-50);
+                // Keep only last 100 messages for better performance
+                if (roomData.messages.length > 100) {
+                    roomData.messages = roomData.messages.slice(-100);
                 }
 
+                roomData.lastActivity = Date.now();
                 localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
             }
 
             handleMessage(message) {
-                if (message.from === this.localPlayer.id) return; // Ignore own messages
+                if (message.from === this.localPlayer.id) return;
 
                 switch (message.type) {
                     case 'gameUpdate':
@@ -1160,7 +1453,10 @@
             }
 
             startGame() {
-                if (!this.isHost || this.players.length < 2) return;
+                if (!this.isHost || this.players.length < 2) {
+                    alert('Need at least 2 players to start the game!');
+                    return;
+                }
 
                 const players = this.players.map((player, index) => ({
                     ...player,
@@ -1175,13 +1471,14 @@
                     players: players,
                     phase: 'drawing',
                     round: 1,
-                    currentPlayer: 0
+                    currentPlayer: 0,
+                    settings: this.gameSettings
                 };
 
-                // Update room status
                 const roomData = JSON.parse(localStorage.getItem(`room_${this.currentRoom}`) || '{}');
                 roomData.status = 'playing';
                 roomData.gameState = gameState;
+                roomData.lastActivity = Date.now();
                 localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
 
                 this.joinActiveGame(gameState);
@@ -1197,7 +1494,6 @@
                 gameManager.initializeFromRoom(gameState);
                 chatApp.enableChat();
                 
-                // Continue polling for game updates and chat
                 this.startPolling();
             }
 
@@ -1215,10 +1511,10 @@
                 }
 
                 if (this.currentRoom && this.localPlayer && !this.isHost) {
-                    // Remove self from room
                     const roomData = JSON.parse(localStorage.getItem(`room_${this.currentRoom}`) || '{}');
                     if (roomData.players) {
                         roomData.players = roomData.players.filter(p => p.id !== this.localPlayer.id);
+                        roomData.lastActivity = Date.now();
                         localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
                     }
                 }
@@ -1231,10 +1527,11 @@
                 
                 this.showMain();
                 this.updateConnectionStatus('Disconnected');
+                document.getElementById('playerCount').textContent = '0';
             }
         }
 
-        // Game Manager
+        // Enhanced Game Manager
         class GameManager {
             constructor() {
                 this.gameState = 'lobby';
@@ -1251,28 +1548,37 @@
                 this.timeRemaining = 0;
                 this.artworks = [];
                 this.currentAuctionIndex = 0;
+                this.submittedPlayers = [];
+                this.gameSettings = {
+                    drawingTime: 90,
+                    biddingTime: 30
+                };
                 
                 this.prompts = [
-                    "A cat wearing sunglasses",
-                    "A robot eating ice cream",
-                    "A dragon flying over a castle",
-                    "An alien playing guitar",
-                    "A superhero walking a dog",
-                    "A pirate ship in space",
-                    "A wizard making coffee",
-                    "A unicorn riding a bicycle",
-                    "A dinosaur wearing a tutu",
-                    "A knight fighting a toaster",
-                    "An octopus playing piano",
-                    "A penguin surfing",
-                    "A vampire at a beach party",
-                    "A ninja cooking dinner",
-                    "A mermaid in a library",
-                    "A ghost driving a car",
-                    "A bear wearing a crown",
-                    "A monkey in a business suit",
+                    "A cat wearing sunglasses at a beach",
+                    "A robot eating ice cream in space",
+                    "A dragon flying over a modern city",
+                    "An alien playing guitar on stage",
+                    "A superhero walking a tiny dog",
+                    "A pirate ship sailing through clouds",
+                    "A wizard making coffee in a lab",
+                    "A unicorn riding a motorcycle",
+                    "A dinosaur wearing a business suit",
+                    "A knight fighting a giant sandwich",
+                    "An octopus playing piano in a jazz club",
+                    "A penguin surfing on lava",
+                    "A vampire at a sunny beach party",
+                    "A ninja cooking in a food truck",
+                    "A mermaid reading in a library",
+                    "A ghost driving a race car",
+                    "A bear wearing a crown and cape",
+                    "A monkey in a space suit",
                     "A phoenix making pancakes",
-                    "A troll gardening flowers"
+                    "A troll gardening rainbow flowers",
+                    "A centaur riding a skateboard",
+                    "A werewolf knitting a sweater",
+                    "A fairy using a smartphone",
+                    "A minotaur playing video games"
                 ];
                 
                 this.setupEventListeners();
@@ -1292,6 +1598,8 @@
                 this.gameState = gameState.phase;
                 this.currentRound = gameState.round;
                 this.currentPlayer = gameState.currentPlayer;
+                this.gameSettings = gameState.settings || this.gameSettings;
+                this.submittedPlayers = [];
                 
                 this.updateUI();
                 
@@ -1301,12 +1609,11 @@
             }
 
             broadcastUpdate(update) {
-                // All players can send updates, not just host
                 roomManager.sendMessage('gameUpdate', update);
             }
 
             handleRemoteUpdate(update) {
-                // Handle updates from other players
+                // Merge update with current state
                 Object.assign(this, update);
                 
                 if (update.phase && update.phase !== this.gameState) {
@@ -1320,28 +1627,37 @@
                     }
                 }
                 
-                // Update submission tracking
                 if (update.submittedPlayers) {
                     this.submittedPlayers = update.submittedPlayers;
-                    
-                    // Update UI to show how many have submitted
-                    if (this.gameState === 'drawing') {
-                        const myPlayer = this.getMyPlayer();
-                        if (myPlayer && this.submittedPlayers.includes(myPlayer.id)) {
-                            document.getElementById('gameTimer').textContent = `Submitted! Waiting for others... (${this.submittedPlayers.length}/${this.players.length})`;
-                            document.getElementById('submitDrawing').disabled = true;
-                        } else {
-                            document.getElementById('gameTimer').textContent = `Drawing time! (${this.submittedPlayers.length}/${this.players.length} submitted)`;
-                        }
-                        
-                        // Check if everyone has submitted
-                        if (this.submittedPlayers.length >= this.players.length && this.gameState === 'drawing') {
-                            this.startBiddingPhase();
-                        }
-                    }
+                    this.updateSubmissionStatus();
                 }
                 
                 this.updateUI();
+            }
+
+            updateSubmissionStatus() {
+                if (this.gameState === 'drawing') {
+                    const myPlayer = this.getMyPlayer();
+                    const gameTimer = document.getElementById('gameTimer');
+                    const submitBtn = document.getElementById('submitDrawing');
+                    
+                    if (myPlayer && this.submittedPlayers.includes(myPlayer.id)) {
+                        if (gameTimer) {
+                            gameTimer.textContent = `Submitted! (${this.submittedPlayers.length}/${this.players.length})`;
+                        }
+                        if (submitBtn) {
+                            submitBtn.disabled = true;
+                        }
+                    } else {
+                        if (gameTimer) {
+                            gameTimer.textContent = `Drawing time! (${this.submittedPlayers.length}/${this.players.length} submitted)`;
+                        }
+                    }
+                    
+                    if (this.submittedPlayers.length >= this.players.length && this.gameState === 'drawing') {
+                        setTimeout(() => this.startBiddingPhase(), 1000);
+                    }
+                }
             }
             
             startDrawingPhase() {
@@ -1351,12 +1667,17 @@
                 
                 document.getElementById('promptDisplay').classList.add('active');
                 document.getElementById('promptText').textContent = this.currentPrompt;
+                document.getElementById('phaseInfo').textContent = 'Drawing Phase';
                 
                 whiteboard.clearCanvas();
                 
-                // Everyone draws simultaneously, not turn-based
-                this.timeRemaining = 90;
+                this.timeRemaining = this.gameSettings.drawingTime;
                 this.updateTimer();
+                
+                if (this.drawingTimer) {
+                    clearInterval(this.drawingTimer);
+                }
+                
                 this.drawingTimer = setInterval(() => {
                     this.timeRemaining--;
                     this.updateTimer();
@@ -1366,10 +1687,7 @@
                     }
                 }, 1000);
                 
-                // Enable drawing for everyone
                 document.getElementById('submitDrawing').disabled = false;
-                document.getElementById('gameTimer').textContent = 'Everyone draw now!';
-                
                 this.updateUI();
             }
 
@@ -1387,14 +1705,8 @@
                 const myPlayer = this.getMyPlayer();
                 if (this.gameState !== 'drawing' || !myPlayer) return;
                 
-                // Check if this player has already submitted
                 if (this.submittedPlayers && this.submittedPlayers.includes(myPlayer.id)) {
                     return;
-                }
-                
-                if (this.drawingTimer) {
-                    clearInterval(this.drawingTimer);
-                    this.drawingTimer = null;
                 }
                 
                 const artwork = {
@@ -1407,35 +1719,27 @@
                 
                 this.artworks = [...(this.artworks || []), artwork];
                 
-                // Track who has submitted
                 if (!this.submittedPlayers) this.submittedPlayers = [];
                 this.submittedPlayers.push(myPlayer.id);
                 
                 document.getElementById('submitDrawing').disabled = true;
-                document.getElementById('gameTimer').textContent = `Submitted! Waiting for others... (${this.submittedPlayers.length}/${this.players.length})`;
                 
-                // Broadcast submission update
                 const update = {
                     artworks: this.artworks,
                     submittedPlayers: this.submittedPlayers
                 };
                 this.broadcastUpdate(update);
                 
-                // Check if everyone has submitted
-                if (this.submittedPlayers.length >= this.players.length) {
-                    this.startBiddingPhase();
-                }
+                this.updateSubmissionStatus();
             }
 
             forceSubmitAll() {
-                // Time's up - force submit for anyone who hasn't submitted
                 const myPlayer = this.getMyPlayer();
                 if (!myPlayer) return;
                 
                 if (!this.submittedPlayers) this.submittedPlayers = [];
                 
                 if (!this.submittedPlayers.includes(myPlayer.id)) {
-                    // Auto-submit current drawing
                     const artwork = {
                         playerId: myPlayer.id,
                         playerName: myPlayer.name,
@@ -1455,7 +1759,6 @@
                 
                 document.getElementById('submitDrawing').disabled = true;
                 
-                // Move to bidding phase
                 const update = {
                     phase: 'bidding',
                     artworks: this.artworks,
@@ -1469,22 +1772,15 @@
                 this.startBiddingPhase();
             }
             
-            generateNewPrompt() {
-                let newPrompt;
-                do {
-                    newPrompt = this.prompts[Math.floor(Math.random() * this.prompts.length)];
-                } while (newPrompt === this.currentPrompt);
-                return newPrompt;
-            }
-            
             startBiddingPhase() {
                 this.gameState = 'bidding';
                 this.currentAuctionIndex = 0;
-                this.submittedPlayers = []; // Reset for next round
+                this.submittedPlayers = [];
+                
                 document.getElementById('promptDisplay').classList.remove('active');
+                document.getElementById('phaseInfo').textContent = 'Bidding Phase';
                 document.querySelector('.toolbar').style.display = 'none';
                 
-                // Only start auction if we have artworks
                 if (this.artworks && this.artworks.length > 0) {
                     this.startNextAuction();
                 }
@@ -1500,9 +1796,8 @@
                 this.currentBid = 0;
                 this.currentBidder = null;
                 
-                // Only start timer if we're the host to avoid conflicts
                 if (roomManager.isHost) {
-                    this.timeRemaining = 30;
+                    this.timeRemaining = this.gameSettings.biddingTime;
                     this.broadcastUpdate({
                         timeRemaining: this.timeRemaining,
                         currentBid: this.currentBid,
@@ -1513,13 +1808,11 @@
                 
                 this.showBiddingInterface();
                 
-                // Only host manages the timer
                 if (roomManager.isHost && !this.biddingTimer) {
                     this.biddingTimer = setInterval(() => {
                         this.timeRemaining--;
                         this.updateBiddingTimer();
                         
-                        // Broadcast timer updates every 5 seconds
                         if (this.timeRemaining % 5 === 0) {
                             this.broadcastUpdate({
                                 timeRemaining: this.timeRemaining
@@ -1571,7 +1864,7 @@
                 
                 this.currentBid = bidAmount;
                 this.currentBidder = myPlayer.id;
-                this.timeRemaining = 30;
+                this.timeRemaining = this.gameSettings.biddingTime;
                 
                 const update = {
                     currentBid: this.currentBid,
@@ -1581,7 +1874,7 @@
                 
                 this.broadcastUpdate(update);
                 
-                document.getElementById('currentBid').textContent = `Current Bid: $${this.currentBid} (${myPlayer.name})`;
+                document.getElementById('currentBid').textContent = `Current Bid: ${this.currentBid} (${myPlayer.name})`;
                 document.getElementById('bidInput').value = this.currentBid + 100;
                 
                 this.updateUI();
@@ -1594,8 +1887,8 @@
                     complex: Math.floor(Math.random() * 800) + 700
                 };
                 
-                const complexPrompts = ['knight fighting', 'pirate ship in space', 'dragon flying'];
-                const mediumPrompts = ['robot eating', 'alien playing', 'superhero walking'];
+                const complexPrompts = ['knight fighting', 'pirate ship', 'dragon flying', 'wizard making', 'robot eating'];
+                const mediumPrompts = ['alien playing', 'superhero walking', 'unicorn riding', 'dinosaur wearing'];
                 
                 let category = 'simple';
                 if (complexPrompts.some(phrase => this.currentPrompt.toLowerCase().includes(phrase.toLowerCase()))) {
@@ -1613,21 +1906,40 @@
                     this.biddingTimer = null;
                 }
                 
+                let resultMessage = '';
+                
                 if (this.currentBidder !== null) {
                     const winner = this.players.find(p => p.id === this.currentBidder);
-                    const seller = this.players[this.currentArtwork.playerId];
+                    const seller = this.players.find(p => p.id === this.currentArtwork.playerId);
                     
-                    winner.money -= this.currentBid;
-                    seller.money += this.currentBid;
-                    
-                    setTimeout(() => {
-                        alert(`${winner.name} won "${this.currentArtwork.prompt}" for $${this.currentBid}!\nActual value was $${this.currentArtwork.actualValue}`);
-                    }, 500);
+                    if (winner && seller) {
+                        winner.money -= this.currentBid;
+                        seller.money += this.currentBid;
+                        
+                        resultMessage = `${winner.name} won "${this.currentArtwork.prompt}" for ${this.currentBid}!\nActual value was ${this.currentArtwork.actualValue}`;
+                        
+                        // Add to chat
+                        if (roomManager) {
+                            roomManager.sendMessage('chat', {
+                                content: `${winner.name} bought "${this.currentArtwork.prompt}" for ${this.currentBid} (Value: ${this.currentArtwork.actualValue})`,
+                                sender: 'Auction'
+                            });
+                        }
+                    }
                 } else {
-                    setTimeout(() => {
-                        alert(`No bids for "${this.currentArtwork.prompt}" (Value: $${this.currentArtwork.actualValue})`);
-                    }, 500);
+                    resultMessage = `No bids for "${this.currentArtwork.prompt}" (Value: ${this.currentArtwork.actualValue})`;
+                    
+                    if (roomManager) {
+                        roomManager.sendMessage('chat', {
+                            content: `No bids for "${this.currentArtwork.prompt}" (Value: ${this.currentArtwork.actualValue})`,
+                            sender: 'Auction'
+                        });
+                    }
                 }
+                
+                setTimeout(() => {
+                    alert(resultMessage);
+                }, 500);
                 
                 document.getElementById('biddingOverlay').classList.remove('active');
                 
@@ -1656,12 +1968,11 @@
             
             endRound() {
                 this.currentRound++;
-                // Rotate to next starting player for next round
                 this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
                 this.artworks = [];
                 this.currentAuctionIndex = 0;
-                this.currentPrompt = ''; // Reset prompt for next round
-                this.submittedPlayers = []; // Reset submission tracking
+                this.currentPrompt = '';
+                this.submittedPlayers = [];
                 
                 document.querySelector('.toolbar').style.display = 'flex';
                 
@@ -1691,6 +2002,7 @@
             
             endGame() {
                 this.gameState = 'results';
+                document.getElementById('phaseInfo').textContent = 'Game Complete';
                 
                 const sortedPlayers = [...this.players].sort((a, b) => b.money - a.money);
                 
@@ -1700,19 +2012,41 @@
                 standingsDiv.innerHTML = '';
                 sortedPlayers.forEach((player, index) => {
                     const standingItem = document.createElement('div');
-                    standingItem.className = `standing-item ${index === 0 ? 'winner' : ''}`;
+                    let itemClass = 'standing-item';
+                    let trophy = '';
+                    
+                    if (index === 0) {
+                        itemClass += ' winner';
+                        trophy = ' 🏆';
+                    } else if (index === 1) {
+                        itemClass += ' second';
+                        trophy = ' 🥈';
+                    } else if (index === 2) {
+                        itemClass += ' third';
+                        trophy = ' 🥉';
+                    }
+                    
+                    standingItem.className = itemClass;
                     standingItem.innerHTML = `
                         <div>
-                            <strong>${index + 1}. ${player.name}</strong>
-                            ${index === 0 ? ' 🏆' : ''}
+                            <strong>${index + 1}. ${player.name}</strong>${trophy}
+                            <br><small>Secret values: ${player.secretValues.low}-${player.secretValues.high}</small>
                         </div>
-                        <div style="color: #27ae60; font-weight: bold;">$${player.money.toLocaleString()}</div>
+                        <div style="color: #27ae60; font-weight: bold;">${player.money.toLocaleString()}</div>
                     `;
                     standingsDiv.appendChild(standingItem);
                 });
                 
                 resultsModal.classList.add('active');
                 this.updateUI();
+                
+                // Announce winner in chat
+                if (roomManager && sortedPlayers.length > 0) {
+                    roomManager.sendMessage('chat', {
+                        content: `🎉 Game Over! ${sortedPlayers[0].name} wins with ${sortedPlayers[0].money.toLocaleString()}!`,
+                        sender: 'System'
+                    });
+                }
             }
             
             resetGame() {
@@ -1726,6 +2060,7 @@
                 this.currentBidder = null;
                 this.artworks = [];
                 this.currentAuctionIndex = 0;
+                this.submittedPlayers = [];
                 
                 if (this.drawingTimer) {
                     clearInterval(this.drawingTimer);
@@ -1750,6 +2085,8 @@
             
             updateTimer() {
                 const timerDisplay = document.getElementById('gameTimer');
+                if (!timerDisplay) return;
+                
                 const minutes = Math.floor(this.timeRemaining / 60);
                 const seconds = this.timeRemaining % 60;
                 timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -1765,6 +2102,8 @@
             
             updateBiddingTimer() {
                 const timerDisplay = document.getElementById('bidTimer');
+                if (!timerDisplay) return;
+                
                 timerDisplay.textContent = `Time Remaining: ${this.timeRemaining}s`;
                 
                 if (this.timeRemaining <= 5) {
@@ -1779,7 +2118,7 @@
             updateUI() {
                 const myPlayer = this.getMyPlayer();
                 if (myPlayer) {
-                    document.getElementById('moneyDisplay').textContent = `Money: $${myPlayer.money.toLocaleString()}`;
+                    document.getElementById('moneyDisplay').textContent = `Money: ${myPlayer.money.toLocaleString()}`;
                 }
                 
                 document.getElementById('roundInfo').textContent = `Round ${this.currentRound} of ${this.maxRounds}`;
@@ -1788,12 +2127,13 @@
                 if (this.gameState === 'lobby') {
                     document.getElementById('gameTimer').textContent = 'In Lobby';
                     document.getElementById('gameTimer').style.color = '#ffeb3b';
+                    document.getElementById('phaseInfo').textContent = 'Lobby';
                 } else if (this.gameState === 'bidding') {
-                    document.getElementById('gameTimer').textContent = 'Bidding Phase';
-                    document.getElementById('gameTimer').style.color = '#ffeb3b';
+                    document.getElementById('phaseInfo').textContent = 'Bidding Phase';
                 } else if (this.gameState === 'results') {
                     document.getElementById('gameTimer').textContent = 'Game Complete';
                     document.getElementById('gameTimer').style.color = '#27ae60';
+                    document.getElementById('phaseInfo').textContent = 'Game Complete';
                 }
                 
                 const skipBtn = document.getElementById('skipBidding');
@@ -1806,7 +2146,13 @@
             
             updatePlayersList() {
                 const playersList = document.getElementById('playersList');
+                const playerCount = document.getElementById('playerCount');
+                
                 playersList.innerHTML = '';
+                
+                if (playerCount) {
+                    playerCount.textContent = this.players.length;
+                }
                 
                 this.players.forEach((player, index) => {
                     const playerItem = document.createElement('div');
@@ -1818,14 +2164,26 @@
                     }
                     
                     const isMe = player.id === roomManager.localPlayer?.id;
+                    let statusText = 'Connected';
+                    let statusClass = '';
+                    
+                    if (this.gameState === 'drawing' && this.submittedPlayers) {
+                        if (this.submittedPlayers.includes(player.id)) {
+                            statusText = 'Submitted';
+                            statusClass = 'submitted';
+                        } else {
+                            statusText = 'Drawing...';
+                            statusClass = 'drawing';
+                        }
+                    }
                     
                     playerItem.innerHTML = `
                         <div>
                             <div class="player-name">${player.name} ${isMe ? '(You)' : ''}</div>
-                            <div class="player-values">Values: $${player.secretValues?.low || 0}-$${player.secretValues?.high || 0}</div>
-                            <div class="player-status">Connected</div>
+                            <div class="player-values">Values: ${player.secretValues?.low || 0}-${player.secretValues?.high || 0}</div>
+                            <div class="player-status ${statusClass}">${statusText}</div>
                         </div>
-                        <div class="player-money">$${player.money?.toLocaleString() || '0'}</div>
+                        <div class="player-money">${player.money?.toLocaleString() || '0'}</div>
                     `;
                     
                     playersList.appendChild(playerItem);
@@ -1833,7 +2191,7 @@
             }
         }
 
-        // Whiteboard App (same as before)
+        // Enhanced Whiteboard App (same as before but with improvements)
         class WhiteboardApp {
             constructor() {
                 this.canvas = document.getElementById('whiteboard');
@@ -1910,6 +2268,7 @@
                     this.eyedropColor(e);
                 });
                 
+                // Enhanced touch support
                 this.canvas.addEventListener('touchstart', (e) => {
                     e.preventDefault();
                     const touch = e.touches[0];
@@ -1934,6 +2293,14 @@
                 this.canvas.addEventListener('touchend', (e) => {
                     e.preventDefault();
                     this.stopDrawing();
+                });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.undo();
+                    }
                 });
             }
             
@@ -2152,13 +2519,15 @@
             }
         }
         
-        // Chat App
+        // Enhanced Chat App with better multiplayer features
         class ChatApp {
             constructor() {
                 this.chatMessages = document.getElementById('chatMessages');
                 this.chatInput = document.getElementById('chatInput');
+                this.chatToggle = document.getElementById('chatToggle');
                 this.messageCount = 1;
                 this.enabled = false;
+                this.isMinimized = false;
                 
                 this.setupEventListeners();
             }
@@ -2172,10 +2541,32 @@
                 });
             }
 
+            toggleChat() {
+                const chatMessages = document.getElementById('chatMessages');
+                const chatInput = document.getElementById('chatInput');
+                
+                this.isMinimized = !this.isMinimized;
+                
+                if (this.isMinimized) {
+                    chatMessages.style.display = 'none';
+                    chatInput.style.display = 'none';
+                    this.chatToggle.textContent = '+';
+                } else {
+                    chatMessages.style.display = 'block';
+                    chatInput.style.display = 'block';
+                    this.chatToggle.textContent = '−';
+                    this.scrollToBottom();
+                }
+            }
+
             enableChat() {
                 this.enabled = true;
                 this.chatInput.disabled = false;
                 this.chatInput.placeholder = "Type a message...";
+                
+                // Clear initial system message
+                this.chatMessages.innerHTML = '';
+                this.addMessage('Chat enabled! Say hello to other players.', 'System', false);
             }
 
             sendMessage() {
@@ -2183,6 +2574,12 @@
                 
                 const message = this.chatInput.value.trim();
                 if (!message || !roomManager.localPlayer) return;
+                
+                // Check for spam prevention
+                if (message.length > 500) {
+                    alert('Message too long! Maximum 500 characters.');
+                    return;
+                }
                 
                 roomManager.sendMessage('chat', {
                     content: message,
@@ -2197,30 +2594,55 @@
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${isOwn ? 'own' : ''}`;
                 
+                // Add timestamp for system messages
+                const timestamp = sender === 'System' || sender === 'Auction' ? 
+                    new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                
                 messageDiv.innerHTML = `
-                    <div class="sender">${sender}</div>
+                    <div class="sender">${sender}${timestamp ? ` (${timestamp})` : ''}</div>
                     <div class="content">${this.escapeHtml(content)}</div>
                 `;
                 
                 this.chatMessages.appendChild(messageDiv);
                 this.messageCount++;
                 
-                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                this.scrollToBottom();
                 this.manageFadeEffect();
+                
+                // Flash chat if minimized and it's not our own message
+                if (this.isMinimized && !isOwn) {
+                    this.chatToggle.style.background = '#dc3545';
+                    setTimeout(() => {
+                        this.chatToggle.style.background = '#007bff';
+                    }, 1000);
+                }
+            }
+            
+            scrollToBottom() {
+                if (!this.isMinimized) {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }
             }
             
             manageFadeEffect() {
                 const messages = this.chatMessages.querySelectorAll('.message');
                 
-                if (messages.length > 8) {
+                if (messages.length > 10) {
                     messages.forEach((message, index) => {
-                        if (index < messages.length - 8) {
-                            const opacity = Math.max(0.3, 1 - ((messages.length - 8 - index) * 0.2));
+                        if (index < messages.length - 10) {
+                            const opacity = Math.max(0.3, 1 - ((messages.length - 10 - index) * 0.1));
                             message.style.opacity = opacity;
                         } else {
                             message.style.opacity = 1;
                         }
                     });
+                }
+                
+                // Remove old messages to prevent memory issues
+                if (messages.length > 50) {
+                    for (let i = 0; i < messages.length - 50; i++) {
+                        messages[i].remove();
+                    }
                 }
             }
             
@@ -2250,12 +2672,32 @@
             });
         }
         
-        // Initialize everything
+        // Initialize everything when page loads
         window.addEventListener('load', () => {
             whiteboard = new WhiteboardApp();
             gameManager = new GameManager();
             roomManager = new RoomManager();
             chatApp = new ChatApp();
+            
+            // Clean up old rooms on page load
+            const keys = Object.keys(localStorage);
+            const now = Date.now();
+            keys.forEach(key => {
+                if (key.startsWith('room_')) {
+                    const roomData = JSON.parse(localStorage.getItem(key) || '{}');
+                    // Remove rooms older than 1 hour
+                    if (roomData.created && (now - roomData.created) > 3600000) {
+                        localStorage.removeItem(key);
+                    }
+                }
+            });
+        });
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (roomManager && roomManager.currentRoom && roomManager.localPlayer) {
+                roomManager.leaveRoom();
+            }
         });
     </script>
 </body>
