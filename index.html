@@ -930,7 +930,7 @@
     <div class="lobby-modal" id="lobbyModal">
         <div class="lobby-panel">
             <h2>Auction Whiteboard Game</h2>
-            <p>Enhanced multiplayer support for 2-8 players</p>
+            <p>Multiplayer game for exactly 8 players</p>
             
             <div id="lobbyMain" class="lobby-options">
                 <button class="lobby-btn" onclick="roomManager.createRoom()">Create Room</button>
@@ -946,16 +946,8 @@
                 <div class="player-settings">
                     <h4>Game Settings</h4>
                     <div class="settings-row">
-                        <label>Max Players:</label>
-                        <select id="maxPlayers">
-                            <option value="2">2 Players</option>
-                            <option value="3">3 Players</option>
-                            <option value="4" selected>4 Players</option>
-                            <option value="5">5 Players</option>
-                            <option value="6">6 Players</option>
-                            <option value="7">7 Players</option>
-                            <option value="8">8 Players</option>
-                        </select>
+                        <label>Players:</label>
+                        <span>8 Players (Fixed)</span>
                     </div>
                     <div class="settings-row">
                         <label>Drawing Time:</label>
@@ -1136,15 +1128,15 @@
         let roomManager;
         let chatApp;
 
-        // Enhanced Room Manager with better multiplayer support
+        // Enhanced Room Manager with faster communication
         class RoomManager {
             constructor() {
                 this.isHost = false;
                 this.currentRoom = null;
                 this.players = [];
-                this.maxPlayers = 4;
+                this.maxPlayers = 8; // Fixed to 8 players
                 this.gameSettings = {
-                    maxPlayers: 4,
+                    maxPlayers: 8, // Fixed to 8 players
                     drawingTime: 90,
                     biddingTime: 30
                 };
@@ -1153,8 +1145,63 @@
                 this.localPlayer = null;
                 this.pollInterval = null;
                 this.lastHeartbeat = Date.now();
+                this.broadcastChannel = null;
+                this.messageQueue = [];
                 
                 this.updateConnectionStatus('Ready to create or join a room');
+            }
+
+            initializeFastCommunication(roomCode) {
+                // Use BroadcastChannel for same-device communication (testing)
+                try {
+                    this.broadcastChannel = new BroadcastChannel(`game_room_${roomCode}`);
+                    this.broadcastChannel.onmessage = (event) => {
+                        this.handleBroadcastMessage(event.data);
+                    };
+                    console.log('Fast communication initialized');
+                } catch (e) {
+                    console.log('BroadcastChannel not supported, using localStorage only');
+                }
+            }
+
+            handleBroadcastMessage(data) {
+                if (data.from === this.localPlayer?.id) return; // Ignore own messages
+                
+                switch (data.type) {
+                    case 'gameUpdate':
+                        if (gameManager) {
+                            gameManager.handleRemoteUpdate(data.data);
+                        }
+                        break;
+                    case 'chat':
+                        if (chatApp) {
+                            chatApp.addMessage(data.data.content, data.data.sender, false);
+                        }
+                        break;
+                    case 'playerJoined':
+                        this.handlePlayerJoined(data.data);
+                        break;
+                    case 'heartbeat':
+                        this.handleRemoteHeartbeat(data.data);
+                        break;
+                }
+            }
+
+            fastBroadcast(type, data) {
+                const message = {
+                    type: type,
+                    data: data,
+                    from: this.localPlayer?.id,
+                    timestamp: Date.now()
+                };
+
+                // Send via BroadcastChannel for instant delivery (same device)
+                if (this.broadcastChannel) {
+                    this.broadcastChannel.postMessage(message);
+                }
+
+                // Also send via localStorage for persistence and cross-device
+                this.sendMessage(type, data);
             }
 
             updateConnectionStatus(status, type = '') {
@@ -1162,7 +1209,14 @@
                 const indicatorEl = document.getElementById('connectionIndicator');
                 
                 if (statusEl) {
-                    statusEl.textContent = status;
+                    // Add communication method info
+                    let comMethod = '';
+                    if (this.broadcastChannel) {
+                        comMethod = ' (Fast Mode)';
+                    } else {
+                        comMethod = ' (Standard Mode)';
+                    }
+                    statusEl.textContent = status + comMethod;
                     statusEl.className = `connection-status ${type}`;
                 }
                 
@@ -1196,8 +1250,8 @@
                 this.isHost = true;
                 this.currentRoom = this.generateRoomCode();
                 
-                // Get settings from UI
-                this.gameSettings.maxPlayers = parseInt(document.getElementById('maxPlayers').value);
+                // Get settings from UI (maxPlayers is always 8)
+                this.gameSettings.maxPlayers = 8; // Always 8 players
                 this.gameSettings.drawingTime = parseInt(document.getElementById('drawingTime').value);
                 this.gameSettings.biddingTime = parseInt(document.getElementById('biddingTime').value);
                 
@@ -1222,11 +1276,14 @@
 
                 localStorage.setItem(`room_${this.currentRoom}`, JSON.stringify(roomData));
 
+                // Initialize fast communication
+                this.initializeFastCommunication(this.currentRoom);
+
                 document.getElementById('lobbyMain').style.display = 'none';
                 document.getElementById('createRoomForm').style.display = 'block';
                 document.getElementById('roomCode').textContent = this.currentRoom;
 
-                this.startPolling();
+                this.startFastPolling();
                 chatApp.enableChat();
                 this.updateConnectionStatus(`Room ${this.currentRoom} created - waiting for players`, 'connected');
             }
@@ -1278,21 +1335,31 @@
                 roomData.lastActivity = Date.now();
                 localStorage.setItem(`room_${roomCode}`, JSON.stringify(roomData));
 
+                // Initialize fast communication
+                this.initializeFastCommunication(roomCode);
+
+                // Broadcast player joined
+                this.fastBroadcast('playerJoined', {
+                    player: this.localPlayer,
+                    roomCode: roomCode
+                });
+
                 document.getElementById('lobbyMain').style.display = 'none';
                 document.getElementById('joinRoomForm').style.display = 'none';
                 document.getElementById('connectedRoom').style.display = 'block';
 
-                this.startPolling();
+                this.startFastPolling();
                 chatApp.enableChat();
                 this.updateConnectionStatus(`Joined room ${roomCode}`, 'connected');
             }
 
-            startPolling() {
+            startFastPolling() {
+                // Much faster polling for better responsiveness
                 this.pollInterval = setInterval(() => {
                     this.pollRoomUpdates();
                     this.sendHeartbeat();
                     this.cleanupDisconnectedPlayers();
-                }, 1000);
+                }, 200); // 200ms instead of 1000ms for much faster updates
             }
 
             sendHeartbeat() {
@@ -1400,11 +1467,11 @@
                 if (playerProgress) playerProgress.style.width = `${progressFill}%`;
                 if (roomPlayerProgress) roomPlayerProgress.style.width = `${progressFill}%`;
 
-                // Show start button for host when minimum players reached
+                // Show start button for host when we have exactly 8 players
                 const startBtn = document.getElementById('startGameBtn');
-                if (startBtn && this.isHost && this.players.length >= 2) {
+                if (startBtn && this.isHost && this.players.length === 8) {
                     startBtn.style.display = 'block';
-                    startBtn.textContent = `Start Game (${this.players.length}/${this.gameSettings.maxPlayers} players)`;
+                    startBtn.textContent = `Start Game (${this.players.length}/8 players)`;
                 } else if (startBtn) {
                     startBtn.style.display = 'none';
                 }
@@ -1453,8 +1520,8 @@
             }
 
             startGame() {
-                if (!this.isHost || this.players.length < 2) {
-                    alert('Need at least 2 players to start the game!');
+                if (!this.isHost || this.players.length !== 8) {
+                    alert('Need exactly 8 players to start the game!');
                     return;
                 }
 
@@ -1494,7 +1561,7 @@
                 gameManager.initializeFromRoom(gameState);
                 chatApp.enableChat();
                 
-                this.startPolling();
+                this.startFastPolling();
             }
 
             closeRoom() {
@@ -1609,11 +1676,24 @@
             }
 
             broadcastUpdate(update) {
-                roomManager.sendMessage('gameUpdate', update);
+                // Use fast broadcast for immediate delivery
+                roomManager.fastBroadcast('gameUpdate', update);
             }
 
             handleRemoteUpdate(update) {
-                // Merge update with current state
+                // Handle bid updates with highest priority for real-time bidding
+                if (update.currentBid !== undefined) {
+                    this.currentBid = update.currentBid;
+                    this.currentBidder = update.currentBidder;
+                    if (update.timeRemaining !== undefined) {
+                        this.timeRemaining = update.timeRemaining;
+                    }
+                    // Update bidding UI immediately
+                    this.updateBiddingUI();
+                    this.updateBiddingTimer();
+                }
+                
+                // Merge other updates
                 Object.assign(this, update);
                 
                 if (update.phase && update.phase !== this.gameState) {
@@ -1632,31 +1712,42 @@
                     this.updateSubmissionStatus();
                 }
                 
+                // Update auction state
+                if (update.currentAuctionIndex !== undefined) {
+                    this.currentAuctionIndex = update.currentAuctionIndex;
+                    if (this.gameState === 'bidding' && this.artworks && this.artworks.length > 0) {
+                        this.currentArtwork = this.artworks[this.currentAuctionIndex];
+                        if (this.currentAuctionIndex < this.artworks.length) {
+                            this.showBiddingInterface();
+                        }
+                    }
+                }
+                
                 this.updateUI();
             }
 
             updateSubmissionStatus() {
-                if (this.gameState === 'drawing') {
-                    const myPlayer = this.getMyPlayer();
-                    const gameTimer = document.getElementById('gameTimer');
-                    const submitBtn = document.getElementById('submitDrawing');
-                    
-                    if (myPlayer && this.submittedPlayers.includes(myPlayer.id)) {
-                        if (gameTimer) {
-                            gameTimer.textContent = `Submitted! (${this.submittedPlayers.length}/${this.players.length})`;
-                        }
-                        if (submitBtn) {
-                            submitBtn.disabled = true;
-                        }
-                    } else {
-                        if (gameTimer) {
-                            gameTimer.textContent = `Drawing time! (${this.submittedPlayers.length}/${this.players.length} submitted)`;
-                        }
+                if (this.gameState !== 'drawing') return;
+                
+                const myPlayer = this.getMyPlayer();
+                const gameTimer = document.getElementById('gameTimer');
+                
+                if (myPlayer && this.submittedPlayers.includes(myPlayer.id)) {
+                    // Player has submitted - lock them and show waiting message
+                    this.lockUserActions();
+                    if (gameTimer) {
+                        gameTimer.textContent = `Waiting for other players... (${this.submittedPlayers.length}/${this.players.length})`;
                     }
-                    
-                    if (this.submittedPlayers.length >= this.players.length && this.gameState === 'drawing') {
-                        setTimeout(() => this.startBiddingPhase(), 1000);
+                } else {
+                    // Player hasn't submitted yet
+                    if (gameTimer) {
+                        gameTimer.textContent = `Drawing time! (${this.submittedPlayers.length}/${this.players.length} submitted)`;
                     }
+                }
+                
+                // Check if everyone has submitted
+                if (this.submittedPlayers.length >= this.players.length && this.gameState === 'drawing') {
+                    setTimeout(() => this.startBiddingPhase(), 1000);
                 }
             }
             
@@ -1722,11 +1813,8 @@
                 if (!this.submittedPlayers) this.submittedPlayers = [];
                 this.submittedPlayers.push(myPlayer.id);
                 
-                // Disable drawing immediately after submission
-                const submitBtn = document.getElementById('submitDrawing');
-                const toolbar = document.querySelector('.toolbar');
-                if (submitBtn) submitBtn.disabled = true;
-                if (toolbar) toolbar.style.pointerEvents = 'none';
+                // LOCK ALL USER ACTIONS EXCEPT CHAT
+                this.lockUserActions();
                 
                 const update = {
                     artworks: this.artworks,
@@ -1735,6 +1823,40 @@
                 this.broadcastUpdate(update);
                 
                 this.updateSubmissionStatus();
+                
+                // Check if everyone has submitted
+                if (this.submittedPlayers.length >= this.players.length) {
+                    // Wait a moment then proceed to auction
+                    setTimeout(() => {
+                        this.startBiddingPhase();
+                    }, 1000);
+                }
+            }
+
+            lockUserActions() {
+                // Disable everything except chat
+                const submitBtn = document.getElementById('submitDrawing');
+                const toolbar = document.querySelector('.toolbar');
+                const canvas = document.getElementById('whiteboard');
+                
+                if (submitBtn) submitBtn.disabled = true;
+                if (toolbar) toolbar.style.pointerEvents = 'none';
+                if (canvas) canvas.style.pointerEvents = 'none';
+                
+                // Show waiting message
+                const gameTimer = document.getElementById('gameTimer');
+                if (gameTimer) {
+                    gameTimer.textContent = `Waiting for other players... (${this.submittedPlayers.length}/${this.players.length})`;
+                }
+            }
+
+            unlockUserActions() {
+                // Re-enable user actions for new round
+                const toolbar = document.querySelector('.toolbar');
+                const canvas = document.getElementById('whiteboard');
+                
+                if (toolbar) toolbar.style.pointerEvents = 'auto';
+                if (canvas) canvas.style.pointerEvents = 'auto';
             }
 
             forceSubmitAll() {
@@ -1761,11 +1883,9 @@
                     this.drawingTimer = null;
                 }
                 
-                // Disable drawing for everyone when time is up
+                // Only disable submit button when time is up
                 const submitBtn = document.getElementById('submitDrawing');
-                const toolbar = document.querySelector('.toolbar');
                 if (submitBtn) submitBtn.disabled = true;
-                if (toolbar) toolbar.style.pointerEvents = 'none';
                 
                 const update = {
                     phase: 'bidding',
@@ -1820,24 +1940,31 @@
                 
                 if (roomManager.isHost) {
                     this.timeRemaining = this.gameSettings.biddingTime;
+                    // Fast broadcast auction start with synchronized timer
                     this.broadcastUpdate({
+                        auctionStarted: true,
                         timeRemaining: this.timeRemaining,
                         currentBid: this.currentBid,
                         currentBidder: this.currentBidder,
-                        currentAuctionIndex: this.currentAuctionIndex
+                        currentAuctionIndex: this.currentAuctionIndex,
+                        currentArtwork: this.currentArtwork,
+                        syncTimestamp: Date.now()
                     });
                 }
                 
                 this.showBiddingInterface();
                 
+                // Only host manages the timer but broadcasts updates frequently
                 if (roomManager.isHost && !this.biddingTimer) {
                     this.biddingTimer = setInterval(() => {
                         this.timeRemaining--;
                         this.updateBiddingTimer();
                         
-                        if (this.timeRemaining % 5 === 0) {
+                        // Broadcast timer updates every 2 seconds for sync
+                        if (this.timeRemaining % 2 === 0 || this.timeRemaining <= 10) {
                             this.broadcastUpdate({
-                                timeRemaining: this.timeRemaining
+                                timeRemaining: this.timeRemaining,
+                                syncTimestamp: Date.now()
                             });
                         }
                         
@@ -1851,6 +1978,9 @@
             showBiddingInterface() {
                 const overlay = document.getElementById('biddingOverlay');
                 const artworkCanvas = document.getElementById('biddingArtwork');
+                
+                if (!this.currentArtwork || !overlay || !artworkCanvas) return;
+                
                 const ctx = artworkCanvas.getContext('2d');
                 
                 const img = new Image();
@@ -1860,12 +1990,28 @@
                 };
                 img.src = this.currentArtwork.imageData;
                 
-                document.getElementById('biddingPrompt').textContent = `"${this.currentArtwork.prompt}" by ${this.currentArtwork.playerName}`;
-                document.getElementById('currentBid').textContent = `Current Bid: $${this.currentBid}`;
-                document.getElementById('bidInput').value = Math.max(this.currentBid + 100, 100);
+                const promptEl = document.getElementById('biddingPrompt');
+                if (promptEl) {
+                    promptEl.textContent = `"${this.currentArtwork.prompt}" by ${this.currentArtwork.playerName}`;
+                }
+                
+                // Update bid display with real-time info
+                this.updateBiddingUI();
                 
                 overlay.classList.add('active');
                 this.updateBiddingTimer();
+                
+                // Fast broadcast that auction started for all players
+                if (roomManager.isHost) {
+                    this.broadcastUpdate({
+                        auctionStarted: true,
+                        currentArtwork: this.currentArtwork,
+                        currentAuctionIndex: this.currentAuctionIndex,
+                        currentBid: this.currentBid,
+                        currentBidder: this.currentBidder,
+                        timeRemaining: this.timeRemaining
+                    });
+                }
             }
             
             placeBid() {
@@ -2277,8 +2423,12 @@
                     this.clearCanvas();
                 });
                 
+                // Add throttling to prevent undo spam
+                let undoTimeout;
                 document.getElementById('undoButton').addEventListener('click', () => {
+                    if (undoTimeout) return; // Prevent spam clicking
                     this.undo();
+                    undoTimeout = setTimeout(() => { undoTimeout = null; }, 100);
                 });
                 
                 this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
@@ -2317,11 +2467,14 @@
                     this.stopDrawing();
                 });
                 
-                // Keyboard shortcuts
+                // Prevent excessive keyboard undo spam
+                let keyUndoTimeout;
                 document.addEventListener('keydown', (e) => {
                     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
                         e.preventDefault();
+                        if (keyUndoTimeout) return;
                         this.undo();
+                        keyUndoTimeout = setTimeout(() => { keyUndoTimeout = null; }, 100);
                     }
                 });
             }
@@ -2603,11 +2756,14 @@
                     return;
                 }
                 
-                roomManager.sendMessage('chat', {
+                // Send message via fast broadcast for immediate delivery
+                roomManager.fastBroadcast('chat', {
                     content: message,
-                    sender: roomManager.localPlayer.name
+                    sender: roomManager.localPlayer.name,
+                    timestamp: Date.now()
                 });
                 
+                // Add to our own chat immediately
                 this.addMessage(message, roomManager.localPlayer.name, true);
                 this.chatInput.value = '';
             }
@@ -2647,12 +2803,11 @@
             }
             
             manageFadeEffect() {
-                // Remove fade effect that was causing messages to disappear
                 const messages = this.chatMessages.querySelectorAll('.message');
                 
-                // Remove old messages to prevent memory issues but don't fade them
-                if (messages.length > 50) {
-                    for (let i = 0; i < messages.length - 50; i++) {
+                // Don't fade messages - just remove old ones for memory management
+                if (messages.length > 30) {
+                    for (let i = 0; i < messages.length - 30; i++) {
                         messages[i].remove();
                     }
                 }
