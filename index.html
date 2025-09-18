@@ -1722,7 +1722,11 @@
                 if (!this.submittedPlayers) this.submittedPlayers = [];
                 this.submittedPlayers.push(myPlayer.id);
                 
-                document.getElementById('submitDrawing').disabled = true;
+                // Disable drawing immediately after submission
+                const submitBtn = document.getElementById('submitDrawing');
+                const toolbar = document.querySelector('.toolbar');
+                if (submitBtn) submitBtn.disabled = true;
+                if (toolbar) toolbar.style.pointerEvents = 'none';
                 
                 const update = {
                     artworks: this.artworks,
@@ -1757,7 +1761,11 @@
                     this.drawingTimer = null;
                 }
                 
-                document.getElementById('submitDrawing').disabled = true;
+                // Disable drawing for everyone when time is up
+                const submitBtn = document.getElementById('submitDrawing');
+                const toolbar = document.querySelector('.toolbar');
+                if (submitBtn) submitBtn.disabled = true;
+                if (toolbar) toolbar.style.pointerEvents = 'none';
                 
                 const update = {
                     phase: 'bidding',
@@ -1777,11 +1785,25 @@
                 this.currentAuctionIndex = 0;
                 this.submittedPlayers = [];
                 
-                document.getElementById('promptDisplay').classList.remove('active');
-                document.getElementById('phaseInfo').textContent = 'Bidding Phase';
-                document.querySelector('.toolbar').style.display = 'none';
+                const promptDisplay = document.getElementById('promptDisplay');
+                const phaseInfo = document.getElementById('phaseInfo');
+                const toolbar = document.querySelector('.toolbar');
+                
+                if (promptDisplay) promptDisplay.classList.remove('active');
+                if (phaseInfo) phaseInfo.textContent = 'Bidding Phase';
+                if (toolbar) toolbar.style.display = 'none';
                 
                 if (this.artworks && this.artworks.length > 0) {
+                    // Broadcast the start of bidding phase to all players
+                    if (roomManager.isHost) {
+                        this.broadcastUpdate({
+                            phase: 'bidding',
+                            artworks: this.artworks,
+                            currentAuctionIndex: 0,
+                            currentBid: 0,
+                            currentBidder: null
+                        });
+                    }
                     this.startNextAuction();
                 }
             }
@@ -2625,20 +2647,10 @@
             }
             
             manageFadeEffect() {
+                // Remove fade effect that was causing messages to disappear
                 const messages = this.chatMessages.querySelectorAll('.message');
                 
-                if (messages.length > 10) {
-                    messages.forEach((message, index) => {
-                        if (index < messages.length - 10) {
-                            const opacity = Math.max(0.3, 1 - ((messages.length - 10 - index) * 0.1));
-                            message.style.opacity = opacity;
-                        } else {
-                            message.style.opacity = 1;
-                        }
-                    });
-                }
-                
-                // Remove old messages to prevent memory issues
+                // Remove old messages to prevent memory issues but don't fade them
                 if (messages.length > 50) {
                     for (let i = 0; i < messages.length - 50; i++) {
                         messages[i].remove();
