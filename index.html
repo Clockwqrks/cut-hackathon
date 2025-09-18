@@ -81,6 +81,13 @@
         <div class="panel">
             <h2>Auction Game</h2>
             
+            <div class="setup-panel">
+                <h4>Setup Required (1 minute)</h4>
+                <p>1. Go to <a href="https://jsonbin.io" target="_blank">jsonbin.io</a><br>
+                2. Create free account<br>
+                3. Copy your API key<br>
+                4. Replace YOUR_API_KEY below with your key</p>
+            </div>
             
             <div id="mainMenu">
                 <button class="btn" onclick="createRoom()">Host Game</button>
@@ -159,10 +166,10 @@
     </div>
 
     <script>
-        // JSONBin.io Configuration - REPLACE WITH CORRECT API KEY
-        const API_KEY = '$2a$10$8Wd8mIV2W.RK9bceV7gYlO7vm3o39WnJhyG08b.mnw6qN7wqqYtAS'; // Get from jsonbin.io dashboard -> API Keys
+        // JSONBin.io Configuration - YOUR ACTUAL API KEY
+        const API_KEY = '$2a$10$edjc/jROwDhY9gS3YVl/YuLytJ1KCw.H.Dk78Z7FbhvfvHBVyRs12'; // Your correct X-Master-Key
         const BASE_URL = 'https://api.jsonbin.io/v3/b';
-        const USE_LOCAL_STORAGE = false; // Set to true for local testing
+        const USE_LOCAL_STORAGE = false; // Now using JSONBin.io for cross-device play
         
         // Global state
         let isHost = false, roomCode = '', localPlayer = null, players = [], gameState = 'lobby';
