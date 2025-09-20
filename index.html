@@ -1854,6 +1854,8 @@
                 return baseValues[category];
             }
 
+            // Replace the endAuction() method in the GameManager class with this fixed version:
+
             endAuction() {
                 if (this.biddingTimer) {
                     clearInterval(this.biddingTimer);
@@ -1868,38 +1870,63 @@
                     const seller = this.players.find(p => p.id === this.currentArtwork.playerId);
                     
                     if (winner && seller) {
-                        // Update money for both players
-                        winner.money -= this.currentBid;
-                        seller.money += this.currentBid;
+                        // CRITICAL FIX: Update money for both players in the main players array
+                        const winnerIndex = this.players.findIndex(p => p.id === this.currentBidder);
+                        const sellerIndex = this.players.findIndex(p => p.id === this.currentArtwork.playerId);
                         
-                        resultMessage = `${winner.name} won "${this.currentArtwork.prompt}" for ${this.currentBid}!\nActual value was ${this.currentArtwork.actualValue}`;
+                        // Deduct money from winner
+                        this.players[winnerIndex].money = Math.max(0, this.players[winnerIndex].money - this.currentBid);
                         
-                        // Broadcast updated player money to all clients
+                        // Add money to seller
+                        this.players[sellerIndex].money += this.currentBid;
+                        
+                        resultMessage = `${winner.name} won "${this.currentArtwork.prompt}" for $${this.currentBid.toLocaleString()}!\nActual value was $${this.currentArtwork.actualValue.toLocaleString()}`;
+                        
+                        // CRITICAL FIX: Broadcast updated player states to ALL clients
                         if (roomManager.isHost) {
                             this.broadcastUpdate({
                                 type: 'playerMoneyUpdate',
-                                players: this.players
+                                players: this.players,
+                                winnerUpdate: {
+                                    playerId: this.currentBidder,
+                                    newMoney: this.players[winnerIndex].money
+                                },
+                                sellerUpdate: {
+                                    playerId: this.currentArtwork.playerId,
+                                    newMoney: this.players[sellerIndex].money
+                                }
                             });
+                            
+                            // Also update the room data in localStorage
+                            const roomData = JSON.parse(localStorage.getItem(`room_${roomManager.currentRoom}`) || '{}');
+                            if (roomData.gameState) {
+                                roomData.gameState.players = this.players;
+                                roomData.lastActivity = Date.now();
+                                localStorage.setItem(`room_${roomManager.currentRoom}`, JSON.stringify(roomData));
+                            }
                         }
                         
                         if (roomManager) {
                             roomManager.sendMessage('chat', {
-                                content: `${winner.name} bought "${this.currentArtwork.prompt}" for ${this.currentBid} (Value: ${this.currentArtwork.actualValue})`,
+                                content: `${winner.name} bought "${this.currentArtwork.prompt}" for $${this.currentBid.toLocaleString()} (Value: $${this.currentArtwork.actualValue.toLocaleString()})`,
                                 sender: 'Auction'
                             });
                         }
                     }
                 } else {
                     // No bids placed
-                    resultMessage = `No bids for "${this.currentArtwork.prompt}" (Value: ${this.currentArtwork.actualValue})`;
+                    resultMessage = `No bids for "${this.currentArtwork.prompt}" (Value: $${this.currentArtwork.actualValue.toLocaleString()})`;
                     
                     if (roomManager) {
                         roomManager.sendMessage('chat', {
-                            content: `No bids for "${this.currentArtwork.prompt}" (Value: ${this.currentArtwork.actualValue})`,
+                            content: `No bids for "${this.currentArtwork.prompt}" (Value: $${this.currentArtwork.actualValue.toLocaleString()})`,
                             sender: 'Auction'
                         });
                     }
                 }
+                
+                // Force immediate UI update to reflect money changes
+                this.updateUI();
                 
                 setTimeout(() => {
                     alert(resultMessage);
@@ -1920,47 +1947,121 @@
                 setTimeout(() => {
                     this.startNextAuction();
                 }, 1500);
-                
-                this.updateUI();
             }
-
-            endRound() {
-                this.drawingPhaseStarted = false; // Reset flag for next round
-                this.currentRound++;
-                this.currentPlayer = (this.currentPlayer + 1) % this.players.length;
-                this.artworks = [];
-                this.currentAuctionIndex = 0;
-                this.currentPrompt = '';
-                this.submittedPlayers = [];
+            
+            // Also add this new method to handle remote money updates:
+            handleRemoteUpdate(update) {
+                // Handle timer updates for non-hosts
+                if (update.type === 'timerUpdate' && !roomManager.isHost) {
+                    this.timeRemaining = update.timeRemaining;
+                    this.updateRoundTimer();
+                    this.updateTimer();
+                    return;
+                }
                 
-                document.querySelector('.toolbar').style.display = 'flex';
+                // CRITICAL FIX: Handle player money updates
+                if (update.type === 'playerMoneyUpdate') {
+                    // Update local players array with new money values
+                    this.players = update.players;
+                    
+                    // Force immediate UI update
+                    this.updateUI();
+                    this.updatePlayersList();
+                    return;
+                }
                 
-                if (this.currentRound > this.maxRounds) {
-                    if (roomManager.isHost) {
-                        this.broadcastUpdate({ phase: 'results' });
-                    }
-                    this.endGame();
-                } else {
-                    if (roomManager.isHost) {
-                        const update = {
-                            phase: 'drawing',
-                            round: this.currentRound,
-                            currentPlayer: this.currentPlayer,
-                            artworks: [],
-                            currentAuctionIndex: 0,
-                            currentPrompt: '',
-                            submittedPlayers: []
-                        };
-                        this.broadcastUpdate(update);
-                    }
-                    setTimeout(() => {
+                // Handle real-time bid updates
+                if (update.type === 'bidUpdate') {
+                    this.currentBid = update.currentBid;
+                    this.currentBidder = update.currentBidder;
+                    
+                    // Update display immediately
+                    document.getElementById('currentBid').textContent = `Current Bid: $${this.currentBid.toLocaleString()} (${update.bidderName})`;
+                    document.getElementById('bidInput').value = this.currentBid + 500;
+                    
+                    this.updateUI();
+                    return;
+                }
+                
+                // Block other timer interference but allow legitimate updates
+                const {timeRemaining, ...safeUpdates} = update;
+                
+                // Only update timeRemaining if it's a timer update
+                if (update.type !== 'timerUpdate') {
+                    Object.assign(this, safeUpdates);
+                }
+                
+                // Prevent infinite loop of phase changes
+                if (update.phase && update.phase !== this.gameState) {
+                    console.log(`Phase change: ${this.gameState} -> ${update.phase}`);
+                    this.gameState = update.phase;
+                    
+                    // Only start phases if we're not already in them
+                    if (this.gameState === 'drawing' && !this.drawingTimer) {
                         this.startDrawingPhase();
-                    }, 500);
+                    } else if (this.gameState === 'bidding') {
+                        this.startBiddingPhase();
+                    } else if (this.gameState === 'results') {
+                        this.endGame();
+                    }
+                }
+                
+                if (update.submittedPlayers) {
+                    this.submittedPlayers = update.submittedPlayers;
+                    this.updateSubmissionStatus();
                 }
                 
                 this.updateUI();
             }
-
+            
+            // Also fix the placeBid method to ensure proper money validation:
+            placeBid(bidAmount = null) {
+                let finalBidAmount;
+                
+                if (bidAmount !== null) {
+                    // Quick bid button was used
+                    finalBidAmount = this.currentBid + bidAmount;
+                } else {
+                    // Manual input was used
+                    finalBidAmount = parseInt(document.getElementById('bidInput').value) || 0;
+                }
+                
+                const myPlayer = this.getMyPlayer();
+                
+                if (!myPlayer) return;
+                
+                if (finalBidAmount <= this.currentBid) {
+                    alert('Bid must be higher than current bid!');
+                    return;
+                }
+                
+                // CRITICAL FIX: Check against current money value, not initial value
+                const currentPlayerMoney = this.players.find(p => p.id === myPlayer.id)?.money || myPlayer.money;
+                
+                if (finalBidAmount > currentPlayerMoney) {
+                    alert(`You don't have enough money! You have $${currentPlayerMoney.toLocaleString()}`);
+                    return;
+                }
+                
+                this.currentBid = finalBidAmount;
+                this.currentBidder = myPlayer.id;
+                
+                // Immediately broadcast bid to all players
+                const bidUpdate = {
+                    type: 'bidUpdate',
+                    currentBid: this.currentBid,
+                    currentBidder: this.currentBidder,
+                    bidderName: myPlayer.name
+                };
+                
+                this.broadcastUpdate(bidUpdate);
+                
+                // Update local display
+                document.getElementById('currentBid').textContent = `Current Bid: $${this.currentBid.toLocaleString()} (${myPlayer.name})`;
+                document.getElementById('bidInput').value = this.currentBid + 500;
+                
+                this.updateUI();
+            }
             endGame() {
                 this.gameState = 'results';
                 document.getElementById('phaseInfo').textContent = 'Game Complete';
